@@ -1,6 +1,7 @@
 mod lb;
 mod consul;
 mod config;
+mod round_robin;
 
 use std::path::PathBuf;
 use pingora::prelude::*;

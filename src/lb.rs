@@ -1,8 +1,9 @@
+use std::collections::BTreeSet;
 use crate::consul::ConsulDiscovery;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use pingora::http::RequestHeader;
-use pingora::lb::LoadBalancer;
+use pingora::lb::{LoadBalancer};
 use pingora::prelude::{HttpPeer, ProxyHttp, RoundRobin, Session};
 use pingora::server::ShutdownWatch;
 use pingora::services::background::BackgroundService;
