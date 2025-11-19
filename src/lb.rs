@@ -9,6 +9,7 @@ use pingora::services::background::BackgroundService;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use crate::config::PPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 
@@ -25,6 +26,7 @@ pub struct ConsulNode {
 #[derive(Clone)]
 pub struct LB {
     pub nodes: Arc<ConsulNodes>,
+    pub pp_config: PPConfig,
 }
 
 #[async_trait]
@@ -39,14 +41,15 @@ impl ProxyHttp for LB {
         _session: &mut Session,
         _ctx: &mut (),
     ) -> pingora::Result<Box<HttpPeer>> {
-        let res = self.nodes.get("device-portal").unwrap()
-            .iter().map(|cn| format!("{}:{}",cn.address,cn.service_port)).collect::<Vec<String>>();
-
         println!(" +++++++++++++++ Nodes = {:?}" , self.nodes);
+        //TODO ROUND_ROBIN NOT WORKING
+        let res = self.nodes.get("pipeline-device-portal-rest-api").unwrap()
+            .iter().map(|cn| format!("{}:{}",cn.address,cn.service_port)).collect::<Vec<String>>();
         let upstream = LoadBalancer::<RoundRobin>::try_from_iter(res)
         .unwrap()
         .select(b"", 256)
         .unwrap();
+        //TODO ROUND_ROBIN NOT WORKING
         println!("upstream peer is: {upstream:?}");
         let peer = Box::new(HttpPeer::new(upstream, false, "one.one.one.one".to_string(),));
         Ok(peer)
@@ -74,8 +77,9 @@ impl ProxyHttp for LB {
 impl BackgroundService for LB {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         println!("Starting Consul background service");
+        let pp_config = self.pp_config.clone();
         let (tx,mut rx) = mpsc::channel::<ConsulNodes>(1);
-        let _ = tokio::spawn(async move { ConsulDiscovery::new().fetch_nodes(tx).await });
+        let _ = tokio::spawn(async move { ConsulDiscovery::new(pp_config).fetch_nodes2(tx).await });
         loop {
             tokio::select! {
                 val = rx.recv() => {
@@ -97,7 +101,6 @@ impl BackgroundService for LB {
 }
 
 pub fn clone_dashmap(src: &ConsulNodes, dst: &ConsulNodes) {
-    dst.clear();
     for host in src.iter(){
         let host_name = host.key();
         let nodes = host.value().clone();

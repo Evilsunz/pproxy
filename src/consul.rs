@@ -3,36 +3,45 @@ use std::time::Duration;
 use dashmap::DashMap;
 use pingora::prelude::sleep;
 use tokio::sync::mpsc::Sender;
+use crate::config::PPConfig;
 use crate::lb::{ConsulNode, ConsulNodes};
 
 pub type VecConsulNode = Vec<ConsulNode>;
 pub type HashMapConsulNodes = HashMap<String, VecConsulNode>;
 
 pub struct ConsulDiscovery{
+    pp_config: PPConfig
 }
 
 impl ConsulDiscovery {
 
-    pub fn new() -> Self {
-        ConsulDiscovery{}
+    pub fn new(pp_config: PPConfig) -> Self {
+        ConsulDiscovery{
+            pp_config
+        }
     }
 
-    pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
+    pub async fn fetch_nodes2(&self, tx: Sender<ConsulNodes>) {
         println!("Starting consul discovery...");
         let mut local_cache : HashMapConsulNodes = HashMap::new();
         loop {
-            let mut result : HashMapConsulNodes = HashMap::new();
-            let nodes = reqwest::get("http://nest-consul-dev.nest.r53.xcal.tv:8500/v1/catalog/service/pipeline-device-portal-rest-api")
-                .await.unwrap()
-                .json::<VecConsulNode>()
-                .await.unwrap();
-            result.insert("device-portal".to_string(), nodes);
-            if result != local_cache {
-                let dash: ConsulNodes = DashMap::from_iter(result.clone().into_iter());
-                let _ = tx.send(dash).await.unwrap();
-                local_cache = result;
-            } else {
-                println!("Consuul discovery is same");
+            for service_name in self.pp_config.consul_service_names.clone() {
+                let nodes = reqwest::get(format!("http://nest-consul-dev.nest.r53.xcal.tv:8500/v1/catalog/service/{}", service_name))
+                    .await.unwrap()
+                    .json::<VecConsulNode>()
+                    .await.unwrap();
+                //println!("Connected to consul node {:?}", nodes);
+                let cache_entry = local_cache.get(&service_name);
+                if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
+                    let mut result : HashMapConsulNodes = HashMap::new();
+                    result.insert(service_name.clone(), nodes.clone());
+                    let dash: ConsulNodes = DashMap::from_iter(result.clone().into_iter());
+                    local_cache.insert(service_name, nodes);
+                    let _ = tx.send(dash).await.unwrap();
+                } else {
+                    println!("Nodes is same !!!!");
+                }
+
             }
             sleep(Duration::from_secs(5)).await;
         }
