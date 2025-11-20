@@ -14,3 +14,4 @@ dashmap = "6.1.0"
 reqwest = { version = "0.12.24" , features = ["json"]}
 clap = { version = "4.5.52", features = ["derive", "env"] }
 twelf = { version =  "0.15.0" , features = ["toml"] }
+bytes = "1.11.0"

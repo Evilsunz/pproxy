@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use crate::consul::ConsulDiscovery;
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -9,7 +8,11 @@ use pingora::server::ShutdownWatch;
 use pingora::services::background::BackgroundService;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::Arc;
+use bytes::Bytes;
+use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
+use pingora::ErrorSource::Upstream;
 use tokio::sync::mpsc;
+use twelf::reexports::log::error;
 use crate::config::PPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
@@ -52,7 +55,21 @@ impl ProxyHttp for LB {
         _session: &mut Session,
         _ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
-        let upstream = self.balancers.get("pipeline-device-portal-rest-api")
+        let upstream_name = match _ctx.fully_qualified_upstream.as_ref() {
+            Some(x) => x,
+            None => {
+                if let Err(e) = _session.respond_error_with_body(502, Bytes::from("502 Bad Gateway\n")).await {
+                    error!("Failed to send error response: {:?}", e);
+                }
+                return Err(Box::new(Error {
+                etype: HTTPStatus(502),
+                esource: Upstream,
+                retry: RetryType::Decided(false),
+                cause: None,
+                context: Option::from(ImmutStr::Static("Upstream not found")),
+            }))
+        }};
+        let upstream = self.balancers.get(upstream_name)
         .unwrap()
         .select(b"", 256)
         .unwrap();
@@ -73,17 +90,17 @@ impl ProxyHttp for LB {
         Ok(false)
     }
 
-    async fn upstream_request_filter(
-        &self,
-        _session: &mut Session,
-        upstream_request: &mut RequestHeader,
-        _ctx: &mut Self::CTX,
-    ) -> pingora::Result<()> {
-        upstream_request
-            .insert_header("Host", "one.one.one.one")
-            .unwrap();
-        Ok(())
-    }
+    // async fn upstream_request_filter(
+    //     &self,
+    //     _session: &mut Session,
+    //     upstream_request: &mut RequestHeader,
+    //     _ctx: &mut Self::CTX,
+    // ) -> pingora::Result<()> {
+    //     upstream_request
+    //         .insert_header("Host", "one.one.one.one")
+    //         .unwrap();
+    //     Ok(())
+    // }
 }
 
 #[async_trait]
@@ -149,13 +166,12 @@ impl LB {
     }
 
     fn resolve_upstream(&self , hostname : &str) -> Option<String> {
-        if (hostname.contains("device-portal-rest-api")){
-            Some("pipeline-device-portal-rest-api".to_string())
-        } else if hostname.contains("config-service") {
-            Some("pipeline-config-service".to_string())
-        } else {
-            None
+        for (k, v) in self.pp_config.host_to_upstream.iter() {
+            if hostname.contains(k) {
+                return Some(v.clone());
+            }
         }
+        None
     }
 
 }

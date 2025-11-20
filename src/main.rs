@@ -16,7 +16,7 @@ fn main() {
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
         Ok(c) => {c}
-        Err(_) => {panic!("Unable to load config")}
+        Err(e) => {panic!("Unable to load config : {}",e)}
     };
     
     println!("{:#?}", conf);

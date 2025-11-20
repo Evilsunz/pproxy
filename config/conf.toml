@@ -1,2 +1,6 @@
-consul_service_names = ["pipeline-device-portal-rest-api", "pipeline-config-service"]
 port = 7777
+
+[host_to_upstream]
+device-portal-rest-api = "pipeline-device-portal-rest-api"
+config-service = "pipeline-config-service"
+alert-service = "pipeline-alert-service"

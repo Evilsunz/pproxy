@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -26,5 +27,5 @@ pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
 #[derive(Debug, Default, Serialize, Clone)]
 pub struct PPConfig {
     pub port : u32,
-    pub consul_service_names: Vec<String>,
+    pub host_to_upstream : HashMap<String, String>,
 }

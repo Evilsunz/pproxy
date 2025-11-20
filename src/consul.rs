@@ -26,15 +26,15 @@ impl ConsulDiscovery {
         let mut local_cache : HashMapConsulNodes = HashMap::new();
         loop {
             //TODO make it async way
-            for service_name in self.pp_config.consul_service_names.clone() {
+            for service_name in self.pp_config.host_to_upstream.values().clone() {
                 let nodes = reqwest::get(format!("http://nest-consul-dev.nest.r53.xcal.tv:8500/v1/catalog/service/{}", service_name))
                     .await.unwrap()
                     .json::<VecConsulNode>()
                     .await.unwrap();
-                let cache_entry = local_cache.get(&service_name);
+                let cache_entry = local_cache.get(service_name);
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
                     let dash: ConsulNodes = DashMap::from_iter([(service_name.clone(), nodes.clone())]);
-                    local_cache.insert(service_name, nodes);
+                    local_cache.insert(service_name.to_string(), nodes);
                     let _ = tx.send(dash).await.unwrap();
                 }
             }
