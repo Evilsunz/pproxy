@@ -31,12 +31,9 @@ impl ConsulDiscovery {
                     .await.unwrap()
                     .json::<VecConsulNode>()
                     .await.unwrap();
-                //println!("Connected to consul node {:?}", nodes);
                 let cache_entry = local_cache.get(&service_name);
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
-                    let mut result: HashMapConsulNodes = HashMap::new();
-                    result.insert(service_name.clone(), nodes.clone());
-                    let dash: ConsulNodes = DashMap::from_iter(result.clone().into_iter());
+                    let dash: ConsulNodes = DashMap::from_iter([(service_name.clone(), nodes.clone())]);
                     local_cache.insert(service_name, nodes);
                     let _ = tx.send(dash).await.unwrap();
                 }
