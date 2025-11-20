@@ -1,1 +1,2 @@
 consul_service_names = ["pipeline-device-portal-rest-api", "pipeline-config-service"]
+port = 7777

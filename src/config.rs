@@ -25,5 +25,6 @@ pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
 #[config]
 #[derive(Debug, Default, Serialize, Clone)]
 pub struct PPConfig {
+    pub port : u32,
     pub consul_service_names: Vec<String>,
 }

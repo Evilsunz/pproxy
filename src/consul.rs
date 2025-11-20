@@ -21,10 +21,11 @@ impl ConsulDiscovery {
         }
     }
 
-    pub async fn fetch_nodes2(&self, tx: Sender<ConsulNodes>) {
+    pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
         println!("Starting consul discovery...");
         let mut local_cache : HashMapConsulNodes = HashMap::new();
         loop {
+            //TODO make it async way
             for service_name in self.pp_config.consul_service_names.clone() {
                 let nodes = reqwest::get(format!("http://nest-consul-dev.nest.r53.xcal.tv:8500/v1/catalog/service/{}", service_name))
                     .await.unwrap()
@@ -33,15 +34,12 @@ impl ConsulDiscovery {
                 //println!("Connected to consul node {:?}", nodes);
                 let cache_entry = local_cache.get(&service_name);
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
-                    let mut result : HashMapConsulNodes = HashMap::new();
+                    let mut result: HashMapConsulNodes = HashMap::new();
                     result.insert(service_name.clone(), nodes.clone());
                     let dash: ConsulNodes = DashMap::from_iter(result.clone().into_iter());
                     local_cache.insert(service_name, nodes);
                     let _ = tx.send(dash).await.unwrap();
-                } else {
-                    println!("Nodes is same !!!!");
                 }
-
             }
             sleep(Duration::from_secs(5)).await;
         }

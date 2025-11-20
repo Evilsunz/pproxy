@@ -1,7 +1,6 @@
 mod lb;
 mod consul;
 mod config;
-mod round_robin;
 
 use std::path::PathBuf;
 use pingora::prelude::*;
@@ -27,11 +26,12 @@ fn main() {
 
     let lb = LB{
         nodes: Arc::new(DashMap::new()),
+        balancers: Arc::new(DashMap::new()),
         pp_config: conf.clone()
     };
     let consul_bg = background_service("consul-background", lb.clone());
     let mut lb = http_proxy_service(&my_server.configuration, lb);
-    lb.add_tcp("0.0.0.0:6188");
+    lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
     my_server.add_service(consul_bg);
     my_server.add_service(lb);
     println!("Server ready");
