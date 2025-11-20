@@ -32,17 +32,25 @@ pub struct LB {
     pub pp_config: PPConfig,
 }
 
+pub struct Context {
+    hostname: Option<String>,
+    fully_qualified_upstream: Option<String>,
+}
+
 #[async_trait]
 impl ProxyHttp for LB {
-    type CTX = ();
-    fn new_ctx(&self) -> () {
-        ()
+    type CTX = Context;
+    fn new_ctx(&self) -> Self::CTX {
+        Context{
+            hostname: None,
+            fully_qualified_upstream : None
+        }
     }
 
     async fn upstream_peer(
         &self,
         _session: &mut Session,
-        _ctx: &mut (),
+        _ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
         let upstream = self.balancers.get("pipeline-device-portal-rest-api")
         .unwrap()
@@ -54,7 +62,14 @@ impl ProxyHttp for LB {
     }
 
     async fn request_filter(&self, _session: &mut Session, _ctx: &mut Self::CTX) -> pingora::Result<bool> {
-        println!(" ++++++ host {:?}", Self::get_host(_session));
+        match self.get_host(_session){
+            Some(hostname) => {
+                let upstream = self.resolve_upstream(&hostname);
+                _ctx.hostname = Some(hostname);
+                _ctx.fully_qualified_upstream = upstream;
+            }
+            None => {}
+        };
         Ok(false)
     }
 
@@ -82,9 +97,9 @@ impl BackgroundService for LB {
             tokio::select! {
                 val = rx.recv() => {
                     match val {
-                        Some(new_nodes) => {
-                            println!(" ++++++++++++ New nodes: {new_nodes:?}");
-                            self.clone_dashmap(&new_nodes, &self.nodes);
+                        Some(new_node) => {
+                            println!(" ++++++++++++ New nodes: {new_node:?}");
+                            self.clone_dashmap(&new_node, &self.nodes);
                             self.populate_balancers()
                         }
                         None => {
@@ -121,7 +136,7 @@ impl LB {
         }
     }
 
-    fn get_host(session: &mut Session) -> Option<String> {
+    fn get_host(&self ,session: &mut Session) -> Option<String> {
         if let Some(host) = session.get_header("Host") {
             let host_port = host.to_str().expect("Expecting host name in request").splitn(2, ':').collect::<Vec<&str>>();
             return Some(host_port[0].to_string());
@@ -131,6 +146,16 @@ impl LB {
             return Some(host.to_string());
         }
         None
+    }
+
+    fn resolve_upstream(&self , hostname : &str) -> Option<String> {
+        if (hostname.contains("device-portal-rest-api")){
+            Some("pipeline-device-portal-rest-api".to_string())
+        } else if hostname.contains("config-service") {
+            Some("pipeline-config-service".to_string())
+        } else {
+            None
+        }
     }
 
 }
