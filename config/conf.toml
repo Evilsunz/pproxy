@@ -1,6 +1,16 @@
 port = 7777
 
+vault_address = "https://localhost"
+role_id = "adsadas"
+secret_id = "asdasdsad"
+path_to_cert_secret = "path/test_certz"
+
+tls_private_cert="./config/private.pem"
+tls_chain_cert="./config/chain.pem"
+
+#hostname(contains) -> consul service name
 [host_to_upstream]
 device-portal-rest-api = "pipeline-device-portal-rest-api"
 config-service = "pipeline-config-service"
 alert-service = "pipeline-alert-service"
+pipeline="pipeline"

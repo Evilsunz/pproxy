@@ -1,17 +1,19 @@
 mod lb;
 mod consul;
 mod config;
+mod vault;
 
+use std::fs::File;
 use std::path::PathBuf;
 use pingora::prelude::*;
 use std::sync::Arc;
 use dashmap::DashMap;
 use crate::config::{parse, PPConfig};
 use crate::lb::LB;
-
+use crate::vault::non_async_fetch_ssl_certs;
 
 fn main() {
-    env_logger::init();
+    //env_logger::init();
 
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
@@ -20,10 +22,11 @@ fn main() {
     };
     
     println!("{:#?}", conf);
-    
+
+    non_async_fetch_ssl_certs(&conf);
+
     let mut my_server = Server::new(None).unwrap();
     my_server.bootstrap();
-
     let lb = LB{
         nodes: Arc::new(DashMap::new()),
         balancers: Arc::new(DashMap::new()),

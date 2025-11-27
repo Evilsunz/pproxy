@@ -27,5 +27,13 @@ pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
 #[derive(Debug, Default, Serialize, Clone)]
 pub struct PPConfig {
     pub port : u32,
+    pub vault_address : String,
+    pub role_id : String,
+    pub secret_id : String,
+
+    pub tls_private_cert : String,
+    pub tls_chain_cert : String,
+    pub path_to_cert_secret : String,
+
     pub host_to_upstream : HashMap<String, String>,
 }
