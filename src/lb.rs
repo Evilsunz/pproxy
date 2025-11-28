@@ -156,8 +156,9 @@ impl LB {
                 .iter()
                 .map(|cn| format!("{}:{}", cn.address, cn.service_port))
                 .collect::<Vec<String>>();
-            let upstreamz = LoadBalancer::<RoundRobin>::try_from_iter(nodes).unwrap();
-            self.balancers.insert(host_name.clone(), upstreamz);
+            if let Ok(upstreamz) = LoadBalancer::<RoundRobin>::try_from_iter(nodes) {
+                self.balancers.insert(host_name.clone(), upstreamz);
+            }
         }
     }
 

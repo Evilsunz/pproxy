@@ -24,6 +24,6 @@ anyhow = "1.0.100"
 pingora-core = "0.6.0"
 
 [lints.clippy]
-panic = "warn"
+#panic = "warn"
 #unwrap_used = "warn"
 #expect_used = "warn"

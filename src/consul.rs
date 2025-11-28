@@ -46,7 +46,7 @@ impl ConsulDiscovery {
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
                     let dash: ConsulNodes = DashMap::from_iter([(service_name.clone(), nodes.clone())]);
                     local_cache.insert(service_name.to_string(), nodes);
-                    tx.send(dash).await.unwrap();
+                    let _ = tx.send(dash).await;
                 }
             }
             sleep(Duration::from_secs(self.pp_config.consul_pool_secs)).await;
