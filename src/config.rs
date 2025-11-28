@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use std::path::PathBuf;
 use twelf::{config, Layer, Error};
 
@@ -16,17 +16,22 @@ pub fn parse() -> Args {
 }
 
 pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
-    let path = path.into();
     let conf = PPConfig::with_layers(&[
         Layer::Toml(path),
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
     Ok(conf)
 }
+
 #[config]
 #[derive(Debug, Default, Serialize, Clone)]
 pub struct PPConfig {
-    pub port : u32,
+    pub port : u64,
+    pub tls_port : u64,
+
+    pub consul_url : String,
+    pub consul_pool_secs : u64,
+
     pub vault_address : String,
     pub role_id : String,
     pub secret_id : String,

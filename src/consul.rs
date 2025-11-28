@@ -23,22 +23,33 @@ impl ConsulDiscovery {
 
     pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
         println!("Starting consul discovery...");
-        let mut local_cache : HashMapConsulNodes = HashMap::new();
+        let mut local_cache: HashMapConsulNodes = HashMap::new();
         loop {
             //TODO make it async way
             for service_name in self.pp_config.host_to_upstream.values().clone() {
-                let nodes = reqwest::get(format!("http://nest-consul-dev.nest.r53.xcal.tv:8500/v1/catalog/service/{}", service_name))
-                    .await.unwrap()
-                    .json::<VecConsulNode>()
-                    .await.unwrap();
+                let nodes = match match reqwest::get(format!("{}{}", self.pp_config.consul_url, service_name))
+                    .await {
+                    Ok(r) => r,
+                    Err(err) => {
+                        println!("Error happened during consul nodes retrieval (proceeding) : {}" , err);
+                        continue;
+                    },
+                }.json::<VecConsulNode>()
+                    .await {
+                    Ok(deser) => deser,
+                    Err(err) => {
+                        println!("Error happened during consul nodes serde (proceeding) : {}" , err);
+                        continue;
+                    },
+                };
                 let cache_entry = local_cache.get(service_name);
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {
                     let dash: ConsulNodes = DashMap::from_iter([(service_name.clone(), nodes.clone())]);
                     local_cache.insert(service_name.to_string(), nodes);
-                    let _ = tx.send(dash).await.unwrap();
+                    tx.send(dash).await.unwrap();
                 }
             }
-            sleep(Duration::from_secs(5)).await;
+            sleep(Duration::from_secs(self.pp_config.consul_pool_secs)).await;
         }
     }
 }

@@ -3,12 +3,11 @@ mod consul;
 mod config;
 mod vault;
 
-use std::fs::File;
 use std::path::PathBuf;
 use pingora::prelude::*;
 use std::sync::Arc;
 use dashmap::DashMap;
-use crate::config::{parse, PPConfig};
+use crate::config::{parse};
 use crate::lb::LB;
 use crate::vault::non_async_fetch_ssl_certs;
 
@@ -35,6 +34,15 @@ fn main() {
     let consul_bg = background_service("consul-background", lb.clone());
     let mut lb = http_proxy_service(&my_server.configuration, lb);
     lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
+
+    let cert_path = conf.tls_chain_cert.clone();
+    let key_path = conf.tls_private_cert.clone();
+
+    let mut tls_settings =
+        pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
+    tls_settings.enable_h2();
+    lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
+
     my_server.add_service(consul_bg);
     my_server.add_service(lb);
     println!("Server ready");

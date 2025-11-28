@@ -10,14 +10,14 @@ use vaultrs::kv2;
 use vaultrs_login::engines::approle::AppRoleLogin;
 use vaultrs_login::LoginClient;
 use crate::config::PPConfig;
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
 
 pub fn non_async_fetch_ssl_certs(conf : &PPConfig){
     let rt = Runtime::new().unwrap();
     rt.block_on(async {
-        match fetch_ssl_certs(&conf).await {
+        match fetch_ssl_certs(conf).await {
             Ok(_) => {}
             Err(err) => {
                 println!("{:?}", err);
@@ -29,12 +29,10 @@ pub fn non_async_fetch_ssl_certs(conf : &PPConfig){
 
 async fn fetch_ssl_certs(conf : &PPConfig) -> Result<(), Error> {
     let retry_strategy = ExponentialBackoff::from_millis(10)
-        //.map(jitter)
-        .take(1);
+        .map(jitter)
+        .take(4);
 
-    let res = Retry::spawn(retry_strategy, move || internal_fetch_ssl_certs(&conf)).await;
-    //let res = internal_fetch_ssl_certs(&conf).await;
-    res
+    Retry::spawn(retry_strategy, move || internal_fetch_ssl_certs(conf)).await
 }
 
 async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
@@ -49,7 +47,7 @@ async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
     let secret_id = conf.secret_id.clone();
     let login = AppRoleLogin { role_id, secret_id };
 
-    let _ =client.login("approle", &login).await?;
+    client.login("approle", &login).await?;
 
     let full_cert : HashMap<String,String>= kv2::read(&client, "kv2", &conf.path_to_cert_secret.clone()).await?;
 

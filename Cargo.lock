@@ -1967,6 +1967,7 @@ dependencies = [
  "env_logger",
  "pem",
  "pingora",
+ "pingora-core",
  "reqwest",
  "serde",
  "serde_derive",
