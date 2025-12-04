@@ -1,9 +1,17 @@
 port = 7777
+tls_port = 7778
 
-vault_address = "https://localhost"
-role_id = "adsadas"
-secret_id = "asdasdsad"
-path_to_cert_secret = "path/test_certz"
+#vault_address = "https://localhost"
+#role_id = "adsadas"
+#secret_id = "asdasdsad"
+#path_to_cert_secret = "path/test_certz"
+#aws_access_key = "zbz"
+#aws_secret_key = "zbz"
+#consul_url = "localhost"
+#fqdns = ["experimental.max"]
+#r53_zone_id = "XXXX"
+
+consul_pool_secs = 60
 
 tls_private_cert="./config/private.pem"
 tls_chain_cert="./config/chain.pem"

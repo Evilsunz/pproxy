@@ -40,5 +40,10 @@ pub struct PPConfig {
     pub tls_chain_cert : String,
     pub path_to_cert_secret : String,
 
+    pub aws_access_key : String,
+    pub aws_secret_key : String,
+    pub r53_zone_id : String,
+
     pub host_to_upstream : HashMap<String, String>,
+    pub fqdns : Vec<String>,
 }

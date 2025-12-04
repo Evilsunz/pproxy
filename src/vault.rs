@@ -52,13 +52,13 @@ async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
     let full_cert : HashMap<String,String>= kv2::read(&client, "kv2", &conf.path_to_cert_secret.clone()).await?;
 
     let vec = BASE64_STANDARD.decode(full_cert.get("data").unwrap())?;
-    let pem = parse_many(vec).expect("Unable to parse base64 full chain pem");
+    let pem = parse_many(vec)?;
     
-    //Writing priv cert to separate file
+    //Writing private [0] cert to separate a file
     std::fs::write(conf.tls_private_cert.clone(), pem[0].clone().to_string())?;
-    let mut f = File::create(conf.tls_chain_cert.clone()).expect("Unable to create file");
     
-    //Writing other cert chain to separate file
+    //Writing another cert chain [1..] to separate a file
+    let mut f = File::create(conf.tls_chain_cert.clone())?;
     for i in pem[1..].iter() {
         f.write_all(i.to_string().as_ref())?;
     }

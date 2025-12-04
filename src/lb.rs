@@ -39,6 +39,7 @@ pub struct Context {
     fully_qualified_upstream: Option<String>,
 }
 
+//TODO move to separate rs
 #[async_trait]
 impl ProxyHttp for LB {
     type CTX = Context;
@@ -49,11 +50,7 @@ impl ProxyHttp for LB {
         }
     }
 
-    async fn upstream_peer(
-        &self,
-        _session: &mut Session,
-        _ctx: &mut Self::CTX,
-    ) -> pingora::Result<Box<HttpPeer>> {
+    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut Self::CTX) -> pingora::Result<Box<HttpPeer>> {
         let upstream_name = match _ctx.fully_qualified_upstream.as_ref() {
             Some(x) => x,
             None => {
@@ -79,11 +76,7 @@ impl ProxyHttp for LB {
             .select(b"", 256)
             .unwrap();
         // println!("upstream peer is: {upstream:?}");
-        let peer = Box::new(HttpPeer::new(
-            upstream,
-            false,
-            "one.one.one.one".to_string(),
-        ));
+        let peer = Box::new(HttpPeer::new(upstream, false, "one.one.one.one".to_string()));
         Ok(peer)
     }
 
@@ -125,11 +118,12 @@ impl BackgroundService for LB {
                 val = rx.recv() => {
                     if let Some(new_node) = val {
                             println!(" ++++++++++++ New nodes: {new_node:?}");
-                            self.clone_dashmap(&new_node, &self.nodes);
-                            self.populate_balancers()
+                            self.repopulate_nodes(&new_node);
+                            self.repopulate_balancers(&new_node)
                     }
                 }
                 _ = shutdown.changed() => {
+                    println!("Shutting down (consul background service)...");
                     break;
                 }
             }
@@ -138,52 +132,43 @@ impl BackgroundService for LB {
 }
 
 impl LB {
-    fn clone_dashmap(&self, src: &ConsulNodes, dst: &ConsulNodes) {
+    fn repopulate_nodes(&self, src: &ConsulNodes) {
         for host in src.iter() {
             let host_name = host.key();
             let nodes = host.value().clone();
-            dst.insert(host_name.clone(), nodes);
+            self.nodes.insert(host_name.clone(), nodes);
         }
     }
 
-    //TODO - refresh only changed nodes
-    fn populate_balancers(&self) {
-        for host in self.nodes.iter() {
-            let host_name = host.key();
-            let nodes = host
-                .value()
-                .clone()
-                .iter()
-                .map(|cn| format!("{}:{}", cn.address, cn.service_port))
-                .collect::<Vec<String>>();
-            if let Ok(upstreamz) = LoadBalancer::<RoundRobin>::try_from_iter(nodes) {
-                self.balancers.insert(host_name.clone(), upstreamz);
+    fn repopulate_balancers(&self, src: &ConsulNodes) {
+        for entry in src.iter() {
+            if let Some(balancer) = self.create_balancer(entry.value()) {
+                self.balancers.insert(entry.key().clone(), balancer);
             }
         }
     }
 
+    fn create_balancer(&self, nodes: &[ConsulNode]) -> Option<LoadBalancer<RoundRobin>> {
+        let endpoints: Vec<String> = nodes.iter()
+            .map(|cn| format!("{}:{}", cn.address, cn.service_port))
+            .collect();
+        LoadBalancer::<RoundRobin>::try_from_iter(endpoints).ok()
+    }
+    
     fn get_host(&self, session: &mut Session) -> Option<String> {
-        if let Some(host) = session.get_header("Host") {
-            let host_port = host
-                .to_str()
-                .expect("Expecting host name in request")
-                .splitn(2, ':')
-                .collect::<Vec<&str>>();
-            return Some(host_port[0].to_string());
-        }
-
-        if let Some(host) = session.req_header().uri.host() {
-            return Some(host.to_string());
-        }
-        None
+        session
+            .get_header("Host")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|h| h.split(':').next())
+                .map(|s| s.to_string())
+            .or_else(|| session.req_header().uri.host().map(|s| s.to_string()))
     }
-
+    
     fn resolve_upstream(&self, hostname: &str) -> Option<String> {
-        for (k, v) in self.pp_config.host_to_upstream.iter() {
-            if hostname.contains(k) {
-                return Some(v.clone());
-            }
-        }
-        None
+        self.pp_config
+            .host_to_upstream.iter()
+                .find(|(k, _)| hostname.contains(k.as_str()))
+                .map(|(_, v)| v.clone())
     }
+    
 }
