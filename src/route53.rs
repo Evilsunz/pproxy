@@ -13,17 +13,13 @@ use crate::config::PPConfig;
 use rand::rng;
 use rand::seq::SliceRandom;
 use tokio::runtime::Runtime;
+use crate::lb::R53;
 
-#[derive(Clone)]
-pub struct R53ShutdownWatch {
-    pub pp_config: PPConfig,
-}
-
-impl R53ShutdownWatch {
+impl R53 {
     pub fn non_async_r53_register(&self){
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            match register_ip_route53(self.pp_config.clone()).await {
+            match register_ip_route53(&self.pp_config).await {
                 Ok(_) => {}
                 Err(err) => {
                     println!("{:?}", err);
@@ -35,13 +31,13 @@ impl R53ShutdownWatch {
 }
 
 #[async_trait]
-impl BackgroundService for R53ShutdownWatch {
+impl BackgroundService for R53 {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
                     println!("Shutting down (dereg r53)...");
-                    deregister_ip_route53(self.pp_config.clone()).await;
+                    deregister_ip_route53(&self.pp_config).await;
                     break;
                 }
             }
@@ -53,7 +49,7 @@ impl BackgroundService for R53ShutdownWatch {
 //    0: InvalidChangeBatch: [Duplicate Resource Record: '133.0.0.13']
 //     1: InvalidChangeBatch: [Duplicate Resource Record: '133.0.0.13']
 //TODO + add jitter
-pub async fn register_ip_route53(conf : PPConfig) -> anyhow::Result<(), Error> {
+pub async fn register_ip_route53(conf : &PPConfig) -> anyhow::Result<(), Error> {
     let ip = "133.0.0.13";
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
@@ -65,7 +61,7 @@ pub async fn register_ip_route53(conf : PPConfig) -> anyhow::Result<(), Error> {
 
 //TODO add error handle
 //TODO + add jitter
-pub async fn deregister_ip_route53(conf : PPConfig)-> anyhow::Result<(), Error>{
+pub async fn deregister_ip_route53(conf : &PPConfig)-> anyhow::Result<(), Error>{
     let ip = "133.0.0.13";
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());

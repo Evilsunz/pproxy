@@ -13,18 +13,21 @@ use crate::config::PPConfig;
 use anyhow::{Error, Result};
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
+use crate::lb::Vault;
 
-pub fn non_async_fetch_ssl_certs(conf : &PPConfig){
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        match fetch_ssl_certs(conf).await {
-            Ok(_) => {}
-            Err(err) => {
-                println!("{:?}", err);
-                std::process::exit(1);
-            }
-        };
-    });
+impl Vault {
+    pub fn non_async_fetch_ssl_certs(&self){
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            match fetch_ssl_certs(&self.pp_config).await {
+                Ok(_) => {}
+                Err(err) => {
+                    println!("{:?}", err);
+                    std::process::exit(1);
+                }
+            };
+        });
+    }
 }
 
 async fn fetch_ssl_certs(conf : &PPConfig) -> Result<(), Error> {

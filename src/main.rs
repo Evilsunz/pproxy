@@ -4,15 +4,14 @@ mod config;
 mod vault;
 mod route53;
 mod utils;
+mod proxy;
 
 use std::path::PathBuf;
 use pingora::prelude::*;
 use std::sync::Arc;
 use dashmap::DashMap;
 use crate::config::{parse};
-use crate::lb::LB;
-use crate::route53::{R53ShutdownWatch};
-use crate::vault::non_async_fetch_ssl_certs;
+use crate::lb::{R53, LB, Vault};
 
 fn main() {
     //env_logger::init();
@@ -31,11 +30,15 @@ fn main() {
         pp_config: conf.clone()
     };
 
-    let r53 = R53ShutdownWatch{
+    let r53 = R53 {
+        pp_config: conf.clone()
+    };
+
+    let vault = Vault {
         pp_config: conf.clone()
     };
     
-    non_async_fetch_ssl_certs(&conf);
+    vault.non_async_fetch_ssl_certs();
     r53.non_async_r53_register();
     
     let mut my_server = Server::new(None).unwrap();
