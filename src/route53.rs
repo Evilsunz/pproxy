@@ -108,6 +108,8 @@ where
 
     let existing_rr = response.resource_record_sets.get(0).unwrap().resource_records.clone().unwrap();
 
+
+
     let new_rr = func(ip, existing_rr);
 
     let resource_record_set = ResourceRecordSet::builder()
@@ -135,6 +137,7 @@ where
 }
 
 fn add_res_record(ip: &str, mut v: Vec<ResourceRecord>) -> Vec<ResourceRecord> {
+    v.retain(|x| !x.value.eq(ip));
     v.push(ResourceRecord::builder().value(ip).build().unwrap());
     v
 }

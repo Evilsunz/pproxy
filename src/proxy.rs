@@ -65,7 +65,7 @@ impl ProxyHttp for NetIqLoadBalancer {
             _ctx.hostname = Some(hostname);
             _ctx.fully_qualified_upstream = upstream;
         };
-        Ok(true)
+        Ok(false)
     }
 
     // async fn upstream_request_filter(
