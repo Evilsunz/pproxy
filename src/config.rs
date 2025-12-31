@@ -1,5 +1,3 @@
-pub(crate) 
-
 use std::collections::HashMap;
 use clap::Parser;
 use serde::{Serialize};
@@ -37,10 +35,11 @@ pub struct PPConfig {
     pub vault_address : String,
     pub role_id : String,
     pub secret_id : String,
+    pub path_to_cert_secret : String,
 
+    pub tls_enabled : bool,
     pub tls_private_cert : String,
     pub tls_chain_cert : String,
-    pub path_to_cert_secret : String,
 
     pub aws_access_key : String,
     pub aws_secret_key : String,
@@ -48,4 +47,6 @@ pub struct PPConfig {
 
     pub host_to_upstream : HashMap<String, String>,
     pub fqdns : Vec<String>,
+
+    pub is_leader : Option<bool>,
 }

@@ -8,10 +8,8 @@ mod proxy;
 
 use std::path::PathBuf;
 use pingora::prelude::*;
-use std::sync::Arc;
-use dashmap::DashMap;
-use crate::config::{parse};
-use crate::lb::{R53, LB, Vault};
+use crate::config::parse;
+use crate::lb::{R53, NetIqLoadBalancer, Vault};
 
 fn main() {
     //env_logger::init();
@@ -24,38 +22,30 @@ fn main() {
     
     println!("{:#?}", conf);
 
-    let lb = LB{
-        nodes: Arc::new(DashMap::new()),
-        balancers: Arc::new(DashMap::new()),
-        pp_config: conf.clone()
-    };
-
-    let r53 = R53 {
-        pp_config: conf.clone()
-    };
-
-    let vault = Vault {
-        pp_config: conf.clone()
-    };
+    let lb = NetIqLoadBalancer::new(conf.clone());
+    let r53 = R53::new(conf.clone());
+    let vault = Vault::new(conf.clone());
     
-    vault.non_async_fetch_ssl_certs();
     r53.non_async_r53_register();
-    
+
     let mut my_server = Server::new(None).unwrap();
     my_server.bootstrap();
-    
+
     let consul_bg = background_service("consul-background", lb.clone());
     let r53_bg = background_service("r53-background", r53.clone());
-    let mut lb = http_proxy_service(&my_server.configuration, lb);
+
+    let mut  lb = http_proxy_service(&my_server.configuration, lb);
     lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
 
-    let cert_path = conf.tls_chain_cert.clone();
-    let key_path = conf.tls_private_cert.clone();
-
-    let mut tls_settings =
-        pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
-    tls_settings.enable_h2();
-    lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
+    if conf.tls_enabled {
+        vault.non_async_fetch_ssl_certs();
+        let cert_path = conf.tls_chain_cert.clone();
+        let key_path = conf.tls_private_cert.clone();
+        let mut tls_settings =
+            pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
+        tls_settings.enable_h2();
+        lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
+    }
 
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);

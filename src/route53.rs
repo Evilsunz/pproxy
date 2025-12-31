@@ -13,10 +13,20 @@ use crate::config::PPConfig;
 use rand::rng;
 use rand::seq::SliceRandom;
 use tokio::runtime::Runtime;
+
 use crate::lb::R53;
+use crate::utils::resolve_ip;
 
 impl R53 {
+
+    pub fn new(pp_config: PPConfig) -> Self {
+        Self {
+            pp_config,
+        }
+    }
+
     pub fn non_async_r53_register(&self){
+        println!("Registering r53...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             match register_ip_route53(&self.pp_config).await {
@@ -37,7 +47,7 @@ impl BackgroundService for R53 {
             tokio::select! {
                 _ = shutdown.changed() => {
                     println!("Shutting down (dereg r53)...");
-                    deregister_ip_route53(&self.pp_config).await;
+                    let _ = deregister_ip_route53(&self.pp_config).await;
                     break;
                 }
             }
@@ -50,11 +60,11 @@ impl BackgroundService for R53 {
 //     1: InvalidChangeBatch: [Duplicate Resource Record: '133.0.0.13']
 //TODO + add jitter
 pub async fn register_ip_route53(conf : &PPConfig) -> anyhow::Result<(), Error> {
-    let ip = "133.0.0.13";
+    let ip = resolve_ip().await.unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns{
-        process(conf.clone(), &fqdn, ip, add_res_record).await?;
+        process(conf.clone(), &fqdn, ip.as_ref(), add_res_record).await?;
     }
     Ok(())
 }
@@ -62,11 +72,11 @@ pub async fn register_ip_route53(conf : &PPConfig) -> anyhow::Result<(), Error> 
 //TODO add error handle
 //TODO + add jitter
 pub async fn deregister_ip_route53(conf : &PPConfig)-> anyhow::Result<(), Error>{
-    let ip = "133.0.0.13";
+    let ip = resolve_ip().await.unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns{
-        process(conf.clone(), &fqdn, ip, remove_res_record).await?;
+        process(conf.clone(), &fqdn, ip.as_ref(), remove_res_record).await?;
     }
     Ok(())
 }

@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::Bytes;
+use dashmap::DashMap;
 use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
 use pingora::ErrorSource::Upstream;
 use pingora::lb::LoadBalancer;
@@ -9,12 +11,12 @@ use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use tokio::sync::mpsc;
 use twelf::reexports::log::error;
+use crate::config::PPConfig;
 use crate::consul::ConsulDiscovery;
-use crate::lb::{ConsulNode, ConsulNodes, Context, LB};
+use crate::lb::{ConsulNode, ConsulNodes, Context, NetIqLoadBalancer};
 
-//TODO move to separate rs
 #[async_trait]
-impl ProxyHttp for LB {
+impl ProxyHttp for NetIqLoadBalancer {
     type CTX = Context;
     fn new_ctx(&self) -> Self::CTX {
         Context {
@@ -80,7 +82,7 @@ impl ProxyHttp for LB {
 }
 
 #[async_trait]
-impl BackgroundService for LB {
+impl BackgroundService for NetIqLoadBalancer {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         println!("Starting Consul background service");
         let pp_config = self.pp_config.clone();
@@ -104,7 +106,17 @@ impl BackgroundService for LB {
     }
 }
 
-impl LB {
+impl NetIqLoadBalancer {
+
+    pub fn new(pp_config: PPConfig) -> Self {
+        Self {
+            nodes: Arc::new(DashMap::new()),
+            balancers: Arc::new(DashMap::new()),
+            pp_config,
+        }
+    }
+
+
     fn repopulate_nodes(&self, src: &ConsulNodes) {
         for host in src.iter() {
             let host_name = host.key();

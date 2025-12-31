@@ -16,6 +16,13 @@ use tokio_retry::Retry;
 use crate::lb::Vault;
 
 impl Vault {
+
+    pub fn new(pp_config: PPConfig) -> Self {
+        Self {
+            pp_config,
+        }
+    }
+    
     pub fn non_async_fetch_ssl_certs(&self){
         let rt = Runtime::new().unwrap();
         rt.block_on(async {

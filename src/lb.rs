@@ -1,16 +1,8 @@
-use async_trait::async_trait;
-use bytes::Bytes;
 use dashmap::DashMap;
-use pingora::ErrorSource::Upstream;
 use pingora::lb::LoadBalancer;
-use pingora::prelude::{HttpPeer, ProxyHttp, RoundRobin, Session};
-use pingora::server::ShutdownWatch;
-use pingora::services::background::BackgroundService;
-use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
+use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use twelf::reexports::log::error;
 use crate::config::PPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
@@ -32,7 +24,7 @@ pub struct Context {
 }
 
 #[derive(Clone)]
-pub struct LB {
+pub struct NetIqLoadBalancer {
     pub nodes: Arc<ConsulNodes>,
     pub balancers: Arc<LoadBalancers>,
     pub pp_config: PPConfig,

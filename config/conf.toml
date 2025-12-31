@@ -14,6 +14,7 @@ tls_port = 7778
 
 consul_pool_secs = 60
 
+tls_enabled=false
 tls_private_cert="./config/private.pem"
 tls_chain_cert="./config/chain.pem"
 
