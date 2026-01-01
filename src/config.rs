@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use twelf::{config, Layer, Error};
 
 #[derive(Parser, Debug)]
-#[command(version)]
+#[command(version,long_about = None, ignore_errors=true)]
 pub struct Args {
     #[arg(short, long, default_value_t = String::from("./config/conf.toml"), env("APP_CONFIG_PATH"))]
     pub config_path: String,

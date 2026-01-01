@@ -5,6 +5,7 @@ mod vault;
 mod route53;
 mod utils;
 mod proxy;
+mod leader;
 
 use std::path::PathBuf;
 use pingora::prelude::*;
@@ -28,7 +29,7 @@ fn main() {
     
     r53.non_async_r53_register();
 
-    let mut my_server = Server::new(None).unwrap();
+    let mut my_server = Server::new(Some(Opt::parse_args())).unwrap();
     my_server.bootstrap();
 
     let consul_bg = background_service("consul-background", lb.clone());
@@ -46,7 +47,7 @@ fn main() {
         tls_settings.enable_h2();
         lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
     }
-
+    my_server.configuration.grace_period_seconds.unwrap();
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);
     my_server.add_service(lb);

@@ -24,6 +24,7 @@ impl Vault {
     }
     
     pub fn non_async_fetch_ssl_certs(&self){
+        println!("Fetching certs...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             match fetch_ssl_certs(&self.pp_config).await {

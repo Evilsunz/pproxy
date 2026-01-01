@@ -1,0 +1,14 @@
+[Unit]
+Description=Pproxy service.
+After=network.target consuld.service
+
+[Service]
+Environment=APP_CONFIG_PATH=/opt/pproxy/config/conf.toml
+User=root
+Type=forking
+PIDFile=/run/pproxy.pid
+WorkingDirectory=/opt/pproxy/
+ExecStart=/opt/pproxy/pproxy -d -c /opt/pproxy/config/core.conf
+
+[Install]
+WantedBy=multi-user.target
