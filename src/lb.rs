@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use pingora::lb::LoadBalancer;
 use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use crate::config::PPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
@@ -38,4 +38,10 @@ pub struct R53 {
 #[derive(Clone)]
 pub struct Vault {
     pub pp_config: PPConfig,
+}
+
+#[derive(Clone)]
+pub struct LeaderRoutine{
+    pub pp_config: PPConfig,
+    pub session_id: Arc<Mutex<String>>,
 }

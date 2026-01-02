@@ -10,7 +10,7 @@ mod leader;
 use std::path::PathBuf;
 use pingora::prelude::*;
 use crate::config::parse;
-use crate::lb::{R53, NetIqLoadBalancer, Vault};
+use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine};
 
 fn main() {
     //env_logger::init();
@@ -26,14 +26,16 @@ fn main() {
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());
     let vault = Vault::new(conf.clone());
-    
+    let leader = LeaderRoutine::new(conf.clone());
+
     r53.non_async_r53_register();
 
     let mut my_server = Server::new(Some(Opt::parse_args())).unwrap();
     my_server.bootstrap();
 
     let consul_bg = background_service("consul-background", lb.clone());
-    let r53_bg = background_service("r53-background", r53.clone());
+    let r53_bg = background_service("r53-background", r53);
+    let leader_bg = background_service("leader-background", leader);
 
     let mut  lb = http_proxy_service(&my_server.configuration, lb);
     lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
@@ -49,6 +51,7 @@ fn main() {
     }
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);
+    my_server.add_service(leader_bg);
     my_server.add_service(lb);
     println!("Server ready");
     my_server.run_forever();

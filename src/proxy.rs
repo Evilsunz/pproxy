@@ -87,7 +87,7 @@ impl BackgroundService for NetIqLoadBalancer {
         println!("Starting Consul background service");
         let pp_config = self.pp_config.clone();
         let (tx, mut rx) = mpsc::channel::<ConsulNodes>(1);
-        tokio::spawn(async move { ConsulDiscovery::new(pp_config).fetch_nodes(tx).await });
+        let handle = tokio::spawn(async move { ConsulDiscovery::new(pp_config).fetch_nodes(tx).await });
         loop {
             tokio::select! {
                 val = rx.recv() => {
@@ -99,6 +99,7 @@ impl BackgroundService for NetIqLoadBalancer {
                 }
                 _ = shutdown.changed() => {
                     println!("Shutting down (consul background service)...");
+                    handle.abort();
                     break;
                 }
             }
