@@ -3,6 +3,7 @@ use clap::Parser;
 use serde::{Serialize};
 use std::path::PathBuf;
 use twelf::{config, Layer, Error};
+use crate::utils::resolve_ip;
 
 #[derive(Parser, Debug)]
 #[command(version,long_about = None, ignore_errors=true)]
@@ -16,10 +17,12 @@ pub fn parse() -> Args {
 }
 
 pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
-    let conf = PPConfig::with_layers(&[
+    let mut conf = PPConfig::with_layers(&[
         Layer::Toml(path),
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
+    let ip = resolve_ip().unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
+    conf.ip = Some(ip);
     Ok(conf)
 }
 
@@ -48,5 +51,6 @@ pub struct PPConfig {
     pub host_to_upstream : HashMap<String, String>,
     pub fqdns : Vec<String>,
 
+    pub ip : Option<String>,
     pub is_leader : Option<bool>,
 }

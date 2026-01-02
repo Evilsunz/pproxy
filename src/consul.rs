@@ -5,6 +5,7 @@ use pingora::prelude::sleep;
 use tokio::sync::mpsc::Sender;
 use crate::config::PPConfig;
 use crate::lb::{ConsulNode, ConsulNodes};
+use crate::utils::get_consul_nodes;
 
 pub type VecConsulNode = Vec<ConsulNode>;
 pub type HashMapConsulNodes = HashMap<String, VecConsulNode>;
@@ -27,20 +28,12 @@ impl ConsulDiscovery {
         loop {
             //TODO make it async way
             for service_name in self.pp_config.host_to_upstream.values().clone() {
-                let nodes = match match reqwest::get(format!("{}{}", self.pp_config.consul_url, service_name))
-                    .await {
-                    Ok(r) => r,
-                    Err(err) => {
-                        println!("Error happened during consul nodes retrieval (proceeding) : {}" , err);
-                        continue;
-                    },
-                }.json::<VecConsulNode>()
-                    .await {
-                    Ok(deser) => deser,
+                let nodes = match get_consul_nodes(self.pp_config.consul_url.as_str(), service_name).await {
+                    Ok(nodes) => nodes,
                     Err(err) => {
                         println!("Error happened during consul nodes serde (proceeding) : {}" , err);
                         continue;
-                    },
+                    }
                 };
                 let cache_entry = local_cache.get(service_name);
                 if cache_entry.is_none() || *cache_entry.unwrap() != nodes {

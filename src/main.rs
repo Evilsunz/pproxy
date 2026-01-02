@@ -47,7 +47,6 @@ fn main() {
         tls_settings.enable_h2();
         lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
     }
-    my_server.configuration.grace_period_seconds.unwrap();
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);
     my_server.add_service(lb);

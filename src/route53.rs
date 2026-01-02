@@ -15,7 +15,6 @@ use rand::seq::SliceRandom;
 use tokio::runtime::Runtime;
 
 use crate::lb::R53;
-use crate::utils::resolve_ip;
 
 impl R53 {
 
@@ -55,12 +54,9 @@ impl BackgroundService for R53 {
     }
 }
 
-//TODO add error handle
-//    0: InvalidChangeBatch: [Duplicate Resource Record: '133.0.0.13']
-//     1: InvalidChangeBatch: [Duplicate Resource Record: '133.0.0.13']
 //TODO + add jitter
 pub async fn register_ip_route53(conf : &PPConfig) -> anyhow::Result<(), Error> {
-    let ip = resolve_ip().await.unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
+    let ip = conf.ip.as_ref().unwrap();
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns{
@@ -72,7 +68,7 @@ pub async fn register_ip_route53(conf : &PPConfig) -> anyhow::Result<(), Error> 
 //TODO add error handle
 //TODO + add jitter
 pub async fn deregister_ip_route53(conf : &PPConfig)-> anyhow::Result<(), Error>{
-    let ip = resolve_ip().await.unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
+    let ip = conf.ip.as_ref().unwrap();
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns{
