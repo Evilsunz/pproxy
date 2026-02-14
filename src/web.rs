@@ -48,7 +48,6 @@ impl Web {
     }
 
     async fn stats(&self) -> Json<Value> {
-
         let nodes = self
             .nodes
             .iter()
@@ -65,6 +64,7 @@ impl Web {
         
         Json(json!({
         "status": "OK",
+        "leader": self.pp_config.is_leader,
         "nodes" : nodes
     }))
     }

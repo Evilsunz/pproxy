@@ -23,7 +23,7 @@ const CONSUL_RELEASE_LOCK: &str = "v1/kv/service/pproxy/leader?release=";
 impl BackgroundService for LeaderRoutine {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         *self.session_id.lock().unwrap() = self.create_consul_session().await.unwrap();
-        let self_clone = self.clone();
+        let mut self_clone = self.clone();
         let handle = tokio::spawn(async move { self_clone.routine().await });
         loop {
             tokio::select! {
@@ -48,7 +48,7 @@ impl LeaderRoutine {
         }
     }
 
-    pub async fn routine(&self) {
+    pub async fn routine(&mut self) {
         log_info!("Starting Leader routine...");
         let session_id = self.session_id.lock().unwrap().clone();
         let ip = self.pp_config.ip.clone().unwrap();
@@ -56,7 +56,9 @@ impl LeaderRoutine {
         loop{
             let leader = self.acquire_consul_lock(&session_id, ip.as_str()).await.unwrap();
             log_info!("Session id :{} + Leader : {}...", session_id, leader);
+            //todo set leader to pp_config
             if leader {
+                self.pp_config.is_leader = Some(true);
                 if let Ok(pproxies) = get_consul_nodes(self.pp_config.consul_url.as_str(), "pproxy").await
                 {
                     let pproxy_ips : Vec<ResourceRecord> = pproxies.iter().map(|n| {
@@ -67,7 +69,7 @@ impl LeaderRoutine {
                         let existing_rr = response.resource_record_sets.get(0).unwrap().resource_records.clone().unwrap();
                         let rez = compare_res_record(pproxy_ips.clone(), existing_rr.clone());
                         if !rez {
-                            log_warn!("Found difference in r53: {:?} and pproxies ips {:?} .Setting route53 to correct values (pproxies_ips)", existing_rr, pproxy_ips);
+                            log_warn!("Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Setting route53 to correct values (pproxies_ips)", fqdn, existing_rr, pproxy_ips);
                             let _ = update_res_record_sets(client.clone(), self.pp_config.r53_zone_id.clone(), fqdn.to_string(), pproxy_ips.clone()).await;
                         }
                     }
@@ -122,7 +124,7 @@ impl LeaderRoutine {
 
 }
 
-fn compare_res_record(mut x: Vec<ResourceRecord>, mut v: Vec<ResourceRecord>) -> bool {
+fn compare_res_record(x: Vec<ResourceRecord>, v: Vec<ResourceRecord>) -> bool {
     let mut pproxies: Vec<String> = x
         .into_iter()
         .map(|rr| rr.value.clone())
