@@ -1,6 +1,9 @@
 port = 7777
-tls_port = 7778
+tls_port = 443
 
+tls_enabled=true
+tls_private_cert="./config/private.pem"
+tls_chain_cert="./config/chain.pem"
 
 #vault_address = "https://localhost"
 #role_id = "adsadas"
@@ -13,14 +16,14 @@ tls_port = 7778
 #r53_zone_id = "XXXX"
 
 consul_pool_secs = 60
-
-tls_enabled=false
-tls_private_cert="./config/private.pem"
-tls_chain_cert="./config/chain.pem"
+consul_leader_pool_secs = 600
 
 #hostname(contains) -> consul service name
 [host_to_upstream]
+snpfa = "pipeline-snpfa-service"
+alert-service = "pipeline-alert-service"
+config-ui = "pipeline-config-ui"
 device-portal-rest-api = "pipeline-device-portal-rest-api"
 config-service = "pipeline-config-service"
-alert-service = "pipeline-alert-service"
-pipeline="pipeline"
+kibana = "pipeline-kibana"
+grafana = "pipeline-grafana"

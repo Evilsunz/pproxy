@@ -73,5 +73,6 @@ async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
     for i in pem[1..].iter() {
         f.write_all(i.to_string().as_ref())?;
     }
+    println!("Certificate updated...");
     Ok(())
 }

@@ -41,6 +41,12 @@ pub struct Vault {
 }
 
 #[derive(Clone)]
+pub struct Web {
+    pub pp_config: PPConfig,
+    pub nodes: Arc<DashMap<String, Vec<ConsulNode>>>,
+}
+
+#[derive(Clone)]
 pub struct LeaderRoutine{
     pub pp_config: PPConfig,
     pub session_id: Arc<Mutex<String>>,

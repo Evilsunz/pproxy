@@ -6,11 +6,12 @@ mod route53;
 mod utils;
 mod proxy;
 mod leader;
+mod web;
 
 use std::path::PathBuf;
 use pingora::prelude::*;
 use crate::config::parse;
-use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine};
+use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
 
 fn main() {
     //env_logger::init();
@@ -27,6 +28,7 @@ fn main() {
     let r53 = R53::new(conf.clone());
     let vault = Vault::new(conf.clone());
     let leader = LeaderRoutine::new(conf.clone());
+    let web = Web::new(conf.clone(), lb.nodes.clone());
 
     r53.non_async_r53_register();
 
@@ -36,9 +38,10 @@ fn main() {
     let consul_bg = background_service("consul-background", lb.clone());
     let r53_bg = background_service("r53-background", r53);
     let leader_bg = background_service("leader-background", leader);
+    let web_bg = background_service("web-background", web);
 
     let mut  lb = http_proxy_service(&my_server.configuration, lb);
-    lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
+    //lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
 
     if conf.tls_enabled {
         vault.non_async_fetch_ssl_certs();
@@ -52,6 +55,7 @@ fn main() {
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);
     my_server.add_service(leader_bg);
+    my_server.add_service(web_bg);
     my_server.add_service(lb);
     println!("Server ready");
     my_server.run_forever();

@@ -32,7 +32,6 @@ impl BackgroundService for LeaderRoutine {
             }
         }
     }
-
 }
 
 impl LeaderRoutine {
@@ -52,10 +51,10 @@ impl LeaderRoutine {
             let leader = self.acquire_consul_lock(&session_id, ip.as_str()).await.unwrap();
             println!("Session id :{} + Leader : {}...", session_id, leader);
             if leader {
-
+                //TODO
             }
             let _ = self.renew_consul_session(&session_id).await.unwrap();
-            sleep(Duration::from_secs(5)).await;
+            sleep(Duration::from_secs(self.pp_config.consul_leader_pool_secs)).await;
         }
     }
 
