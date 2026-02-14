@@ -9,7 +9,7 @@ mod leader;
 mod web;
 mod logging;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use ftail::Ftail;
 use log::LevelFilter;
 use pingora::prelude::*;
@@ -17,18 +17,22 @@ use crate::config::parse;
 use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
 
 fn main() {
-    let _ = Ftail::new()
-        .console(LevelFilter::Info)
-        //.daily_file("logs".as_ref(), LevelFilter::Error)
-        .filter_targets(vec!["pproxy"])
-        .init();
 
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
         Ok(c) => {c}
         Err(e) => {panic!("Unable to load config : {}",e)}
     };
-
+    
+    // TODO mkdir logs
+    let _ = Ftail::new()
+        //.console(LevelFilter::Info)
+        .daily_file(Path::new(&conf.log_path), LevelFilter::Info)
+        .max_file_size(10)
+        .retention_days(30)
+        .filter_targets(vec!["pproxy"])
+        .init();
+    
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());
     let vault = Vault::new(conf.clone());

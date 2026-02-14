@@ -39,6 +39,8 @@ pub struct PPConfig {
     pub consul_pool_secs : u64,
     pub consul_leader_pool_secs : u64,
 
+    pub log_path: String,
+
     pub vault_address : String,
     pub role_id : String,
     pub secret_id : String,

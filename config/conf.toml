@@ -5,6 +5,7 @@ tls_enabled=true
 tls_private_cert="./config/private.pem"
 tls_chain_cert="./config/chain.pem"
 
+
 #vault_address = "https://localhost"
 #role_id = "adsadas"
 #secret_id = "asdasdsad"
@@ -17,6 +18,7 @@ tls_chain_cert="./config/chain.pem"
 
 consul_pool_secs = 60
 consul_leader_pool_secs = 600
+log_path="/opt/pproxy2/logs"
 
 #hostname(contains) -> consul service name
 [host_to_upstream]
