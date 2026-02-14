@@ -11,6 +11,7 @@ use pingora_core::services::background::BackgroundService;
 use crate::config::PPConfig;
 use crate::lb::{ConsulNode, Web};
 use serde_json::{Value, json};
+use crate::log_info;
 
 #[async_trait]
 impl BackgroundService for Web {
@@ -41,7 +42,7 @@ impl Web {
         let self_clone = self.clone();
         let router = Router::new()
             .route("/stats", get(move || async move { self_clone.stats().await }));
-        println!("{}", format!("Listening on http://0.0.0.0:{}", self.pp_config.port));
+        log_info!("{}", format!("Listening on http://0.0.0.0:{} for stats endpoint", self.pp_config.port));
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",self.pp_config.port)).await.unwrap();
         axum::serve(listener, router).await.unwrap();
     }

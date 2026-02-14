@@ -14,6 +14,7 @@ use anyhow::{Error, Result};
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
 use crate::lb::Vault;
+use crate::{log_error, log_info};
 
 impl Vault {
 
@@ -24,13 +25,13 @@ impl Vault {
     }
     
     pub fn non_async_fetch_ssl_certs(&self){
-        println!("Fetching certs...");
+        log_info!("Fetching certs...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             match fetch_ssl_certs(&self.pp_config).await {
                 Ok(_) => {}
                 Err(err) => {
-                    println!("{:?}", err);
+                    log_error!("{:?}", err);
                     std::process::exit(1);
                 }
             };
@@ -73,6 +74,6 @@ async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
     for i in pem[1..].iter() {
         f.write_all(i.to_string().as_ref())?;
     }
-    println!("Certificate updated...");
+    log_info!("Certificate updated...");
     Ok(())
 }

@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use clap::Parser;
 use serde::{Serialize};
 use std::path::PathBuf;
+use aws_sdk_route53::Client;
 use twelf::{config, Layer, Error};
-use crate::utils::resolve_ip;
+use crate::utils::{aws_r53_client, resolve_ip};
 
 #[derive(Parser, Debug)]
 #[command(version,long_about = None, ignore_errors=true)]
@@ -22,12 +23,14 @@ pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
     let ip = resolve_ip().unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
+    let aws_r53_client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
     conf.ip = Some(ip);
+    conf.aws_r53_client = Some(aws_r53_client);
     Ok(conf)
 }
 
 #[config]
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct PPConfig {
     pub port : u64,
     pub tls_port : u64,
@@ -52,6 +55,10 @@ pub struct PPConfig {
     pub host_to_upstream : HashMap<String, String>,
     pub fqdns : Vec<String>,
 
+    #[serde(skip, default)]
     pub ip : Option<String>,
+    #[serde(skip, default)]
+    pub aws_r53_client : Option<Client>,
+    #[serde(skip, default)]
     pub is_leader : Option<bool>,
 }

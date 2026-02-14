@@ -15,6 +15,8 @@ use rand::seq::SliceRandom;
 use tokio::runtime::Runtime;
 
 use crate::lb::R53;
+use crate::{log_error, log_info};
+use crate::utils::{get_res_record_sets, update_res_record_sets};
 
 impl R53 {
 
@@ -25,13 +27,13 @@ impl R53 {
     }
 
     pub fn non_async_r53_register(&self){
-        println!("Registering r53...");
+        log_info!("Registering r53...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             match register_ip_route53(&self.pp_config).await {
                 Ok(_) => {}
                 Err(err) => {
-                    println!("{:?}", err);
+                    log_error!("{:?}", err);
                     std::process::exit(1);
                 }
             };
@@ -45,7 +47,7 @@ impl BackgroundService for R53 {
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
-                    println!("Shutting down (dereg r53)...");
+                    log_info!("Shutting down (dereg r53)...");
                     let _ = deregister_ip_route53(&self.pp_config).await;
                     break;
                 }
@@ -82,54 +84,13 @@ async fn process<F>(conf : PPConfig, fqdn : &str, ip: &str, func: F) -> Result<C
 where
     F: Fn(&str, Vec<ResourceRecord>) -> Vec<ResourceRecord>,
 {
-    let aws_access_key = conf.aws_access_key.clone();
-    let aws_secret_key = conf.aws_secret_key.clone();
-    let credentials = Credentials::new(aws_access_key, aws_secret_key, None, None, "custom-provider");
-
-    let config = Config::builder()
-        .credentials_provider(credentials)
-        .region(Region::new("us-east-1"))
-        .behavior_version(BehaviorVersion::latest())
-        .build();
-
-    let client = aws_sdk_route53::Client::from_conf(config);
-
-    let response = client
-        .list_resource_record_sets()
-        .set_hosted_zone_id(Some(String::from(conf.r53_zone_id.clone())))
-        .set_start_record_name(Some(fqdn.to_string()))
-        .send()
-        .await
-        .unwrap();
-
+    let client = conf.aws_r53_client.as_ref().unwrap();
+    let response = get_res_record_sets(client.clone(),conf.r53_zone_id.clone(),fqdn.to_string()).await;
     let existing_rr = response.resource_record_sets.get(0).unwrap().resource_records.clone().unwrap();
-
-
 
     let new_rr = func(ip, existing_rr);
 
-    let resource_record_set = ResourceRecordSet::builder()
-        .name(fqdn.to_string())
-        .r#type(RrType::A)
-        .ttl(300)
-        .set_resource_records(Some(new_rr))
-        .build()
-        .unwrap();
-
-    let change = Change::builder()
-        .action(ChangeAction::Upsert)
-        .resource_record_set(resource_record_set)
-        .build()
-        .unwrap();
-
-    let change_batch = ChangeBatch::builder().changes(change).build().unwrap();
-
-    client
-        .change_resource_record_sets()
-        .hosted_zone_id(conf.r53_zone_id.clone())
-        .set_change_batch(Some(change_batch))
-        .send()
-        .await
+    update_res_record_sets(client.clone(),conf.r53_zone_id.clone(),fqdn.to_string(),new_rr).await
 }
 
 fn add_res_record(ip: &str, mut v: Vec<ResourceRecord>) -> Vec<ResourceRecord> {

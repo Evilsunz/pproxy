@@ -7,22 +7,27 @@ mod utils;
 mod proxy;
 mod leader;
 mod web;
+mod logging;
 
 use std::path::PathBuf;
+use ftail::Ftail;
+use log::LevelFilter;
 use pingora::prelude::*;
 use crate::config::parse;
 use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
 
 fn main() {
-    //env_logger::init();
+    let _ = Ftail::new()
+        .console(LevelFilter::Info)
+        //.daily_file("logs".as_ref(), LevelFilter::Error)
+        .filter_targets(vec!["pproxy"])
+        .init();
 
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
         Ok(c) => {c}
         Err(e) => {panic!("Unable to load config : {}",e)}
     };
-    
-    println!("{:#?}", conf);
 
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());
@@ -57,6 +62,6 @@ fn main() {
     my_server.add_service(leader_bg);
     my_server.add_service(web_bg);
     my_server.add_service(lb);
-    println!("Server ready");
+    log_info!("Server ready");
     my_server.run_forever();
 }

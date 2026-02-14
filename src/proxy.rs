@@ -14,6 +14,7 @@ use twelf::reexports::log::error;
 use crate::config::PPConfig;
 use crate::consul::ConsulDiscovery;
 use crate::lb::{ConsulNode, ConsulNodes, Context, NetIqLoadBalancer};
+use crate::log_info;
 
 #[async_trait]
 impl ProxyHttp for NetIqLoadBalancer {
@@ -50,7 +51,6 @@ impl ProxyHttp for NetIqLoadBalancer {
             .unwrap()
             .select(b"", 256)
             .unwrap();
-        // println!("upstream peer is: {upstream:?}");
         let peer = Box::new(HttpPeer::new(upstream, false, "one.one.one.one".to_string()));
         Ok(peer)
     }
@@ -84,7 +84,7 @@ impl ProxyHttp for NetIqLoadBalancer {
 #[async_trait]
 impl BackgroundService for NetIqLoadBalancer {
     async fn start(&self, mut shutdown: ShutdownWatch) {
-        println!("Starting Consul background service");
+        log_info!("Starting Consul background service");
         let pp_config = self.pp_config.clone();
         let (tx, mut rx) = mpsc::channel::<ConsulNodes>(1);
         let handle = tokio::spawn(async move { ConsulDiscovery::new(pp_config).fetch_nodes(tx).await });
@@ -92,13 +92,13 @@ impl BackgroundService for NetIqLoadBalancer {
             tokio::select! {
                 val = rx.recv() => {
                     if let Some(new_node) = val {
-                            println!(" ++++++++++++ New nodes: {new_node:?}");
+                            log_info!(" ++++++++++++ New nodes: {new_node:?}");
                             self.repopulate_nodes(&new_node);
                             self.repopulate_balancers(&new_node)
                     }
                 }
                 _ = shutdown.changed() => {
-                    println!("Shutting down (consul background service)...");
+                    log_info!("Shutting down (consul background service)...");
                     handle.abort();
                     break;
                 }

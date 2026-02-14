@@ -5,6 +5,7 @@ use pingora::prelude::sleep;
 use tokio::sync::mpsc::Sender;
 use crate::config::PPConfig;
 use crate::lb::{ConsulNode, ConsulNodes};
+use crate::{log_error, log_info};
 use crate::utils::get_consul_nodes;
 
 pub type VecConsulNode = Vec<ConsulNode>;
@@ -23,7 +24,7 @@ impl ConsulDiscovery {
     }
 
     pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
-        println!("Starting consul discovery...");
+        log_info!("Starting consul discovery...");
         let mut local_cache: HashMapConsulNodes = HashMap::new();
         loop {
             //TODO make it async way
@@ -31,7 +32,7 @@ impl ConsulDiscovery {
                 let nodes = match get_consul_nodes(self.pp_config.consul_url.as_str(), service_name).await {
                     Ok(nodes) => nodes,
                     Err(err) => {
-                        println!("Error happened during consul nodes serde (proceeding) : {}" , err);
+                        log_error!("Error happened during consul nodes serde (proceeding) : {}" , err);
                         continue;
                     }
                 };
