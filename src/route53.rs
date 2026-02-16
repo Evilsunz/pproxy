@@ -1,12 +1,9 @@
 use anyhow::Error;
 use async_trait::async_trait;
-use aws_config::{BehaviorVersion, Region};
-use aws_sdk_route53::Config;
-use aws_sdk_route53::config::Credentials;
 use aws_sdk_route53::config::http::HttpResponse;
 use aws_sdk_route53::error::SdkError;
 use aws_sdk_route53::operation::change_resource_record_sets::{ChangeResourceRecordSetsError, ChangeResourceRecordSetsOutput};
-use aws_sdk_route53::types::{Change, ChangeAction, ChangeBatch, ResourceRecord, ResourceRecordSet, RrType};
+use aws_sdk_route53::types::{ResourceRecord};
 use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use crate::config::PPConfig;

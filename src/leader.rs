@@ -69,7 +69,7 @@ impl LeaderRoutine {
                         let existing_rr = response.resource_record_sets.get(0).unwrap().resource_records.clone().unwrap();
                         let rez = compare_res_record(pproxy_ips.clone(), existing_rr.clone());
                         if !rez {
-                            log_warn!("Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Setting route53 to correct values (pproxies_ips)", fqdn, existing_rr, pproxy_ips);
+                            log_warn!("Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Resetting to pproxies_ips", fqdn, existing_rr, pproxy_ips);
                             let _ = update_res_record_sets(client.clone(), self.pp_config.r53_zone_id.clone(), fqdn.to_string(), pproxy_ips.clone()).await;
                         }
                     }

@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use twelf::reexports::log::error;
 use crate::config::PPConfig;
 use crate::consul::ConsulDiscovery;
-use crate::lb::{ConsulNode, ConsulNodes, Context, NetIqLoadBalancer};
+use crate::lb::{ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::log_info;
 
 #[async_trait]
@@ -110,9 +110,14 @@ impl BackgroundService for NetIqLoadBalancer {
 impl NetIqLoadBalancer {
 
     pub fn new(pp_config: PPConfig) -> Self {
+        //TODO workaround
+        let static_consul_ui_ips = vec!(pp_config.static_consul_agent_ip_port.clone());
+        let balancer = LoadBalancer::<RoundRobin>::try_from_iter(static_consul_ui_ips).unwrap();
+        let balancers =Arc::new(LoadBalancers::new());
+        balancers.insert("consul-ui".to_string(), balancer);
         Self {
             nodes: Arc::new(DashMap::new()),
-            balancers: Arc::new(DashMap::new()),
+            balancers,
             pp_config,
         }
     }

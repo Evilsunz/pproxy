@@ -19,6 +19,7 @@ tls_chain_cert="./config/chain.pem"
 consul_pool_secs = 60
 consul_leader_pool_secs = 600
 log_path="/opt/pproxy2/logs"
+static_consul_agent_ip_port="127.0.0.1:9999"
 
 #hostname(contains) -> consul service name
 [host_to_upstream]
@@ -29,3 +30,4 @@ device-portal-rest-api = "pipeline-device-portal-rest-api"
 config-service = "pipeline-config-service"
 kibana = "pipeline-kibana"
 grafana = "pipeline-grafana"
+consul-ui = "consul-ui"

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use clap::Parser;
-use serde::{Serialize};
 use std::path::PathBuf;
 use aws_sdk_route53::Client;
 use twelf::{config, Layer, Error};
@@ -41,6 +40,8 @@ pub struct PPConfig {
 
     pub log_path: String,
 
+    pub static_consul_agent_ip_port: String,
+    
     pub vault_address : String,
     pub role_id : String,
     pub secret_id : String,
