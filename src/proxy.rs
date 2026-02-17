@@ -10,11 +10,10 @@ use pingora_core::prelude::HttpPeer;
 use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use tokio::sync::mpsc;
-use twelf::reexports::log::error;
 use crate::config::PPConfig;
 use crate::consul::ConsulDiscovery;
 use crate::lb::{ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
-use crate::log_info;
+use crate::{log_error, log_info, log_trace};
 
 #[async_trait]
 impl ProxyHttp for NetIqLoadBalancer {
@@ -34,7 +33,7 @@ impl ProxyHttp for NetIqLoadBalancer {
                     .respond_error_with_body(502, Bytes::from("502 Bad Gateway\n"))
                     .await
                 {
-                    error!("Failed to send error response: {:?}", e);
+                    log_error!("Failed to send error response: {:?}", e);
                 }
                 return Err(Box::new(Error {
                     etype: HTTPStatus(502),
@@ -62,6 +61,8 @@ impl ProxyHttp for NetIqLoadBalancer {
     ) -> pingora::Result<bool> {
         if let Some(hostname) = self.get_host(_session) {
             let upstream = self.resolve_upstream(&hostname);
+            log_trace!("request summary {}" , _session.request_summary());
+            log_trace!("request_filter hostname {} to upstream {}", &hostname ,&upstream.clone().unwrap_or_default());
             _ctx.hostname = Some(hostname);
             _ctx.fully_qualified_upstream = upstream;
         };

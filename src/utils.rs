@@ -20,7 +20,7 @@ pub async fn get_consul_nodes(consul_url :&str, service_name: &str) -> anyhow::R
         .await?.json::<VecConsulNode>()
         .await?;
     if nodes.is_empty() {
-        return Err(anyhow::anyhow!("No consul node found"));
+        return Err(anyhow::anyhow!("No consul healthy service found for service {}", service_name));
     }
 
     Ok(nodes)

@@ -18,8 +18,10 @@ tls_chain_cert="./config/chain.pem"
 
 consul_pool_secs = 60
 consul_leader_pool_secs = 600
-log_path="/opt/pproxy2/logs"
-static_consul_agent_ip_port="127.0.0.1:9999"
+log_path="/opt/pproxy/logs"
+log_level="INFO"
+log_groups= ["pproxy"]
+static_consul_agent_ip_port="127.0.0.1:8500"
 
 #hostname(contains) -> consul service name
 [host_to_upstream]

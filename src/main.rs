@@ -10,6 +10,7 @@ mod web;
 mod logging;
 
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use ftail::Ftail;
 use log::LevelFilter;
 use pingora::prelude::*;
@@ -25,13 +26,19 @@ fn main() {
     };
     
     // TODO mkdir logs
-    let _ = Ftail::new()
-        //.console(LevelFilter::Info)
-        .daily_file(Path::new(&conf.log_path), LevelFilter::Info)
+    let log_level = LevelFilter::from_str(&conf.log_level).unwrap();
+    let mut logger = Ftail::new()
+        //.console(log_level)
+        .daily_file(Path::new(&conf.log_path), log_level)
         .max_file_size(10)
-        .retention_days(30)
-        .filter_targets(vec!["pproxy"])
-        .init();
+        .retention_days(30);
+    let logger = if conf.log_groups.is_empty() {
+        logger
+    } else {
+        let log_group_targets: Vec<&str> = conf.log_groups.iter().map(String::as_str).collect();
+        logger.filter_targets(log_group_targets)
+    };
+    let _ = logger.init();
     
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());

@@ -18,3 +18,10 @@ macro_rules! log_warn {
         log::warn!(target: "pproxy", $($arg)*)
     };
 }
+
+#[macro_export]
+macro_rules! log_trace {
+    ($($arg:tt)*) => {
+        log::trace!(target: "pproxy", $($arg)*)
+    };
+}
