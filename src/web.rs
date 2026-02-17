@@ -63,7 +63,7 @@ impl Web {
         
         Json(json!({
         "status": "OK",
-        "leader": self.pp_config.is_leader,
+        "leader": self.pp_config.is_leader.unwrap_or(false),
         "nodes" : nodes
     }))
     }
