@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use async_trait::async_trait;
 use axum::{Json, Router};
+use axum::response::Redirect;
 use axum::routing::get;
 use dashmap::DashMap;
 use pingora_core::server::ShutdownWatch;
@@ -38,6 +39,7 @@ impl Web {
     pub async fn bind_http(&self) {
         let self_clone = self.clone();
         let router = Router::new()
+            .route("/", get(|| async { Redirect::permanent("/stats") }))
             .route("/stats", get(move || async move { self_clone.stats().await }));
         log_info!("{}", format!("Listening on http://0.0.0.0:{} for stats endpoint", self.pp_config.port));
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",self.pp_config.port)).await.unwrap();
