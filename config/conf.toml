@@ -5,6 +5,8 @@ tls_enabled=true
 tls_private_cert="./config/private.pem"
 tls_chain_cert="./config/chain.pem"
 
+jwt_cert="./config/jwt.pem"
+jwt_private_cert="./config/jwt_private.pem"
 
 #vault_address = "https://localhost"
 #role_id = "adsadas"

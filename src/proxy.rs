@@ -1,19 +1,20 @@
-use std::sync::Arc;
-use async_trait::async_trait;
-use bytes::Bytes;
-use dashmap::DashMap;
-use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
-use pingora::ErrorSource::Upstream;
-use pingora::lb::LoadBalancer;
-use pingora::prelude::{ProxyHttp, RoundRobin, Session};
-use pingora_core::prelude::HttpPeer;
-use pingora_core::server::ShutdownWatch;
-use pingora_core::services::background::BackgroundService;
-use tokio::sync::mpsc;
 use crate::config::PPConfig;
 use crate::consul::ConsulDiscovery;
 use crate::lb::{ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::{log_error, log_info, log_trace};
+use async_trait::async_trait;
+use bytes::Bytes;
+use dashmap::DashMap;
+use pingora::ErrorSource::Upstream;
+use pingora::http::{RequestHeader, ResponseHeader, StatusCode};
+use pingora::lb::LoadBalancer;
+use pingora::prelude::{ProxyHttp, RoundRobin, Session};
+use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
+use pingora_core::prelude::HttpPeer;
+use pingora_core::server::ShutdownWatch;
+use pingora_core::services::background::BackgroundService;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
 #[async_trait]
 impl ProxyHttp for NetIqLoadBalancer {
@@ -25,7 +26,11 @@ impl ProxyHttp for NetIqLoadBalancer {
         }
     }
 
-    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut Self::CTX) -> pingora::Result<Box<HttpPeer>> {
+    async fn upstream_peer(
+        &self,
+        _session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<Box<HttpPeer>> {
         let upstream_name = match _ctx.fully_qualified_upstream.as_ref() {
             Some(x) => x,
             None => {
@@ -50,22 +55,45 @@ impl ProxyHttp for NetIqLoadBalancer {
             .unwrap()
             .select(b"", 256)
             .unwrap();
-        let peer = Box::new(HttpPeer::new(upstream, false, "one.one.one.one".to_string()));
+        let peer = Box::new(HttpPeer::new(
+            upstream,
+            false,
+            "one.one.one.one".to_string(),
+        ));
         Ok(peer)
     }
 
     async fn request_filter(
         &self,
-        _session: &mut Session,
-        _ctx: &mut Self::CTX,
+        session: &mut Session,
+        ctx: &mut Self::CTX,
     ) -> pingora::Result<bool> {
-        if let Some(hostname) = self.get_host(_session) {
-            let upstream = self.resolve_upstream(&hostname);
-            log_trace!("request summary {}" , _session.request_summary());
-            log_trace!("request_filter hostname {} to upstream {}", &hostname ,&upstream.clone().unwrap_or_default());
-            _ctx.hostname = Some(hostname);
-            _ctx.fully_qualified_upstream = upstream;
-        };
+        let hostname = self.get_host(session).ok_or_else(|| {
+            Box::new(Error {
+                etype: HTTPStatus(503),
+                esource: Upstream,
+                retry: RetryType::Decided(false),
+                cause: None,
+                context: Some(ImmutStr::Static("Upstream not found")),
+            })
+        })?;
+        // if hostname.contains("consul-ui") && session.req_header().uri.path() != "/stats" {
+        //     ///OAUTH2
+        //     let location = "http://localhost:7777/stats";
+        //     let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
+        //     resp.insert_header("Location", location)?;
+        //     session.write_response_header(Box::new(resp), true).await?;
+        //     return Ok(true);
+        // };
+
+        let upstream = self.resolve_upstream(&hostname);
+
+        log_trace!("request summary {}", session.request_summary());
+        log_trace!("request_filter hostname {} to upstream {}",&hostname,&upstream.clone().unwrap_or_default());
+
+        ctx.hostname = Some(hostname);
+        ctx.fully_qualified_upstream = upstream;
+
         Ok(false)
     }
 
@@ -109,12 +137,11 @@ impl BackgroundService for NetIqLoadBalancer {
 }
 
 impl NetIqLoadBalancer {
-
     pub fn new(pp_config: PPConfig) -> Self {
         //TODO workaround
-        let static_consul_ui_ips = vec!(pp_config.static_consul_agent_ip_port.clone());
+        let static_consul_ui_ips = vec![pp_config.static_consul_agent_ip_port.clone()];
         let balancer = LoadBalancer::<RoundRobin>::try_from_iter(static_consul_ui_ips).unwrap();
-        let balancers =Arc::new(LoadBalancers::new());
+        let balancers = Arc::new(LoadBalancers::new());
         balancers.insert("consul-ui".to_string(), balancer);
         Self {
             nodes: Arc::new(DashMap::new()),
@@ -122,7 +149,6 @@ impl NetIqLoadBalancer {
             pp_config,
         }
     }
-
 
     fn repopulate_nodes(&self, src: &ConsulNodes) {
         for host in src.iter() {
@@ -141,7 +167,8 @@ impl NetIqLoadBalancer {
     }
 
     fn create_balancer(&self, nodes: &[ConsulNode]) -> Option<LoadBalancer<RoundRobin>> {
-        let endpoints: Vec<String> = nodes.iter()
+        let endpoints: Vec<String> = nodes
+            .iter()
             .map(|cn| format!("{}:{}", cn.address, cn.service_port))
             .collect();
         LoadBalancer::<RoundRobin>::try_from_iter(endpoints).ok()
@@ -158,9 +185,9 @@ impl NetIqLoadBalancer {
 
     fn resolve_upstream(&self, hostname: &str) -> Option<String> {
         self.pp_config
-            .host_to_upstream.iter()
+            .host_to_upstream
+            .iter()
             .find(|(k, _)| hostname.contains(k.as_str()))
             .map(|(_, v)| v.clone())
     }
-
 }

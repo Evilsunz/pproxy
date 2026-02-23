@@ -8,14 +8,16 @@ mod proxy;
 mod leader;
 mod web;
 mod logging;
+mod oauth2;
 
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use ftail::Ftail;
-use log::LevelFilter;
+use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::crypto::CryptoProvider;
 use pingora::prelude::*;
 use crate::config::parse;
-use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
+use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web, AuthVerifier, AuthClaims};
+use crate::logging::init_log;
 
 fn main() {
 
@@ -24,22 +26,9 @@ fn main() {
         Ok(c) => {c}
         Err(e) => {panic!("Unable to load config : {}",e)}
     };
-    
-    // TODO mkdir logs
-    let log_level = LevelFilter::from_str(&conf.log_level).unwrap();
-    let mut logger = Ftail::new()
-        //.console(log_level)
-        .daily_file(Path::new(&conf.log_path), log_level)
-        .max_file_size(10)
-        .retention_days(30);
-    let logger = if conf.log_groups.is_empty() {
-        logger
-    } else {
-        let log_group_targets: Vec<&str> = conf.log_groups.iter().map(String::as_str).collect();
-        logger.filter_targets(log_group_targets)
-    };
-    let _ = logger.init();
-    
+
+    init_log(conf.clone());
+
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());
     let vault = Vault::new(conf.clone());

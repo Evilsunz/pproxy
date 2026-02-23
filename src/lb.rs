@@ -4,6 +4,7 @@ use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use crate::config::PPConfig;
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Validation};
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
@@ -50,4 +51,20 @@ pub struct Web {
 pub struct LeaderRoutine{
     pub pp_config: PPConfig,
     pub session_id: Arc<Mutex<String>>,
+}
+
+pub struct AuthVerifier {
+    pub decoding_key: DecodingKey,
+    pub encoding_key: EncodingKey,
+    pub validation: Validation,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuthClaims {
+    pub sub: String,
+    pub tid: String,
+    pub exp: i64,
+    pub iat: i64,
+    pub iss: String,
+    pub aud: String,
 }

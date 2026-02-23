@@ -53,6 +53,9 @@ pub struct PPConfig {
     pub tls_private_cert : String,
     pub tls_chain_cert : String,
 
+    pub jwt_cert: String,
+    pub jwt_private_cert: String,
+
     pub aws_access_key : String,
     pub aws_secret_key : String,
     pub r53_zone_id : String,

@@ -30,6 +30,8 @@ axum = "0.8.8"
 axum-server = "0.8.0"
 log = "0.4.28"
 ftail = "0.3.1"
+oauth2 = "5.0.0"
+jsonwebtoken = {version = "10.3.0", default-features = false, features = ["rust_crypto", "use_pem"]}
 
 [lints.clippy]
 panic = "warn"
