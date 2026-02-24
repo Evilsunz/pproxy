@@ -9,7 +9,7 @@ use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 use vaultrs::kv2;
 use vaultrs_login::engines::approle::AppRoleLogin;
 use vaultrs_login::LoginClient;
-use crate::config::PPConfig;
+use crate::config::RPConfig;
 use anyhow::{Error, Result};
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
@@ -18,9 +18,9 @@ use crate::{log_error, log_info};
 
 impl Vault {
 
-    pub fn new(pp_config: PPConfig) -> Self {
+    pub fn new(rp_config: RPConfig) -> Self {
         Self {
-            pp_config,
+            rp_config,
         }
     }
     
@@ -28,7 +28,7 @@ impl Vault {
         log_info!("Fetching certs...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            match fetch_ssl_certs(&self.pp_config).await {
+            match fetch_ssl_certs(&self.rp_config).await {
                 Ok(_) => {}
                 Err(err) => {
                     log_error!("{:?}", err);
@@ -39,7 +39,7 @@ impl Vault {
     }
 }
 
-async fn fetch_ssl_certs(conf : &PPConfig) -> Result<(), Error> {
+async fn fetch_ssl_certs(conf : &RPConfig) -> Result<(), Error> {
     let retry_strategy = ExponentialBackoff::from_millis(10)
         .map(jitter)
         .take(4);
@@ -47,7 +47,7 @@ async fn fetch_ssl_certs(conf : &PPConfig) -> Result<(), Error> {
     Retry::spawn(retry_strategy, move || internal_fetch_ssl_certs(conf)).await
 }
 
-async fn internal_fetch_ssl_certs(conf: &PPConfig) -> Result<(), Error> {
+async fn internal_fetch_ssl_certs(conf: &RPConfig) -> Result<(), Error> {
 
     let mut client = VaultClient::new(
         VaultClientSettingsBuilder::default()

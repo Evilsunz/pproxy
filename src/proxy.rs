@@ -1,4 +1,5 @@
-use crate::config::PPConfig;
+use std::fmt::format;
+use crate::config::RPConfig;
 use crate::consul::ConsulDiscovery;
 use crate::lb::{ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::{log_error, log_info, log_trace};
@@ -26,6 +27,37 @@ impl ProxyHttp for NetIqLoadBalancer {
         }
     }
 
+    async fn request_filter(
+        &self,
+        session: &mut Session,
+        ctx: &mut Self::CTX,
+    ) -> pingora::Result<bool> {
+        let hostname = self.get_host(session).ok_or_else(|| {
+            Box::new(Error {
+                etype: HTTPStatus(503),
+                esource: Upstream,
+                retry: RetryType::Decided(false),
+                cause: None,
+                context: Some(ImmutStr::Static("Hostname not resolved")),
+            })
+        })?;
+        // if hostname.contains("consul-ui") && session.req_header().uri.path() != "/stats" {
+        //     ///OAUTH2
+        //     let location = "http://localhost:7777/stats";
+        //     let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
+        //     resp.insert_header("Location", location)?;
+        //     session.write_response_header(Box::new(resp), true).await?;
+        //     return Ok(true);
+        // };
+
+        log_trace!("request summary {}", session.request_summary());
+        let upstream = self.resolve_upstream(&hostname);
+        ctx.hostname = Some(hostname);
+        ctx.fully_qualified_upstream = upstream;
+
+        Ok(false)
+    }
+
     async fn upstream_peer(
         &self,
         _session: &mut Session,
@@ -36,7 +68,7 @@ impl ProxyHttp for NetIqLoadBalancer {
             None => {
                 if let Err(e) = _session
                     .respond_error_with_body(502, Bytes::from("502 Bad Gateway\n"))
-                    .await
+                    .await 
                 {
                     log_error!("Failed to send error response: {:?}", e);
                 }
@@ -49,52 +81,27 @@ impl ProxyHttp for NetIqLoadBalancer {
                 }));
             }
         };
-        let upstream = self
-            .balancers
-            .get(upstream_name)
-            .unwrap()
-            .select(b"", 256)
-            .unwrap();
+        let upstream = match self.balancers.get(upstream_name) {
+            Some(x) => x,
+            None => {
+                log_error!("Balancer not found for upstream: {}", upstream_name);
+                return Err(Box::new(Error {
+                    etype: HTTPStatus(502),
+                    esource: Upstream,
+                    retry: RetryType::Decided(true),
+                    cause: None,
+                    context: Option::from(ImmutStr::Owned(format!("Balancer {} not found", upstream_name).into_boxed_str())),
+                }));
+            },
+        }
+        .select(b"", 256)
+        .unwrap();
         let peer = Box::new(HttpPeer::new(
             upstream,
             false,
             "one.one.one.one".to_string(),
         ));
         Ok(peer)
-    }
-
-    async fn request_filter(
-        &self,
-        session: &mut Session,
-        ctx: &mut Self::CTX,
-    ) -> pingora::Result<bool> {
-        let hostname = self.get_host(session).ok_or_else(|| {
-            Box::new(Error {
-                etype: HTTPStatus(503),
-                esource: Upstream,
-                retry: RetryType::Decided(false),
-                cause: None,
-                context: Some(ImmutStr::Static("Upstream not found")),
-            })
-        })?;
-        // if hostname.contains("consul-ui") && session.req_header().uri.path() != "/stats" {
-        //     ///OAUTH2
-        //     let location = "http://localhost:7777/stats";
-        //     let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
-        //     resp.insert_header("Location", location)?;
-        //     session.write_response_header(Box::new(resp), true).await?;
-        //     return Ok(true);
-        // };
-
-        let upstream = self.resolve_upstream(&hostname);
-
-        log_trace!("request summary {}", session.request_summary());
-        log_trace!("request_filter hostname {} to upstream {}",&hostname,&upstream.clone().unwrap_or_default());
-
-        ctx.hostname = Some(hostname);
-        ctx.fully_qualified_upstream = upstream;
-
-        Ok(false)
     }
 
     // async fn upstream_request_filter(
@@ -114,9 +121,9 @@ impl ProxyHttp for NetIqLoadBalancer {
 impl BackgroundService for NetIqLoadBalancer {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         log_info!("Starting Consul background service");
-        let pp_config = self.pp_config.clone();
+        let rp_config = self.rp_config.clone();
         let (tx, mut rx) = mpsc::channel::<ConsulNodes>(1);
-        let handle = tokio::spawn(async move { ConsulDiscovery::new(pp_config).fetch_nodes(tx).await });
+        let handle = tokio::spawn(async move { ConsulDiscovery::new(rp_config).fetch_nodes(tx).await });
         loop {
             tokio::select! {
                 val = rx.recv() => {
@@ -137,16 +144,16 @@ impl BackgroundService for NetIqLoadBalancer {
 }
 
 impl NetIqLoadBalancer {
-    pub fn new(pp_config: PPConfig) -> Self {
-        //TODO workaround
-        let static_consul_ui_ips = vec![pp_config.static_consul_agent_ip_port.clone()];
+    pub fn new(rp_config: RPConfig) -> Self {
+        //TODO workaround static consul-ui
+        let static_consul_ui_ips = vec![rp_config.static_consul_agent_ip_port.clone()];
         let balancer = LoadBalancer::<RoundRobin>::try_from_iter(static_consul_ui_ips).unwrap();
         let balancers = Arc::new(LoadBalancers::new());
         balancers.insert("consul-ui".to_string(), balancer);
         Self {
             nodes: Arc::new(DashMap::new()),
             balancers,
-            pp_config,
+            rp_config,
         }
     }
 
@@ -184,7 +191,7 @@ impl NetIqLoadBalancer {
     }
 
     fn resolve_upstream(&self, hostname: &str) -> Option<String> {
-        self.pp_config
+        self.rp_config
             .host_to_upstream
             .iter()
             .find(|(k, _)| hostname.contains(k.as_str()))

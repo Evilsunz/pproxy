@@ -3,7 +3,7 @@ Description=Pproxy service.
 After=network.target consuld.service
 
 [Service]
-Environment=APP_CONFIG_PATH=/opt/pproxy/config/conf.toml
+Environment=APP_CONFIG_PATH=/opt/pproxy/config/rproxy.toml
 User=root
 Type=forking
 PIDFile=/run/pproxy.pid

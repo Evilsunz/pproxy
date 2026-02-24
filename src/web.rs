@@ -6,7 +6,7 @@ use axum::routing::get;
 use dashmap::DashMap;
 use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
-use crate::config::PPConfig;
+use crate::config::RPConfig;
 use crate::lb::{ConsulNode, Web};
 use serde_json::{Value, json};
 use crate::log_info;
@@ -29,9 +29,9 @@ impl BackgroundService for Web {
 
 impl Web {
 
-    pub fn new(pp_config: PPConfig, nodes: Arc<DashMap<String, Vec<ConsulNode>>>) -> Self {
+    pub fn new(rp_config: RPConfig, nodes: Arc<DashMap<String, Vec<ConsulNode>>>) -> Self {
         Self {
-            pp_config,
+            rp_config,
             nodes,
         }
     }
@@ -41,8 +41,8 @@ impl Web {
         let router = Router::new()
             .route("/", get(|| async { Redirect::permanent("/stats") }))
             .route("/stats", get(move || async move { self_clone.stats().await }));
-        log_info!("{}", format!("Listening on http://0.0.0.0:{} for stats endpoint", self.pp_config.port));
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",self.pp_config.port)).await.unwrap();
+        log_info!("{}", format!("Listening on http://0.0.0.0:{} for stats endpoint", self.rp_config.port));
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",self.rp_config.port)).await.unwrap();
         axum::serve(listener, router).await.unwrap();
     }
 
@@ -63,7 +63,7 @@ impl Web {
         
         Json(json!({
         "status": "OK",
-        "leader": self.pp_config.is_leader.unwrap_or(false),
+        "leader": self.rp_config.is_leader.unwrap_or(false),
         "nodes" : nodes
     }))
     }

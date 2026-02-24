@@ -8,7 +8,7 @@ use crate::utils::{aws_r53_client, resolve_ip};
 #[derive(Parser, Debug)]
 #[command(version,long_about = None, ignore_errors=true)]
 pub struct Args {
-    #[arg(short, long, default_value_t = String::from("./config/conf.toml"), env("APP_CONFIG_PATH"))]
+    #[arg(short, long, default_value_t = String::from("./config/rproxy.toml"), env("APP_CONFIG_PATH"))]
     pub config_path: String,
 }
 
@@ -16,8 +16,8 @@ pub fn parse() -> Args {
     Args::parse()
 }
 
-pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
-    let mut conf = PPConfig::with_layers(&[
+pub fn load(path: PathBuf) -> Result<RPConfig, Error> {
+    let mut conf = RPConfig::with_layers(&[
         Layer::Toml(path),
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
@@ -30,7 +30,7 @@ pub fn load(path: PathBuf) -> Result<PPConfig, Error> {
 
 #[config]
 #[derive(Debug, Default, Clone)]
-pub struct PPConfig {
+pub struct RPConfig {
     pub port : u64,
     pub tls_port : u64,
 

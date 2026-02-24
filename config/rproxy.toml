@@ -27,11 +27,11 @@ static_consul_agent_ip_port="127.0.0.1:8500"
 
 #hostname(contains) -> consul service name
 [host_to_upstream]
-snpfa = "pipeline-snpfa-service"
-alert-service = "pipeline-alert-service"
-config-ui = "pipeline-config-ui"
-device-portal-rest-api = "pipeline-device-portal-rest-api"
 config-service = "pipeline-config-service"
+device-portal-rest-api = "pipeline-device-portal-rest-api"
+config-ui = "pipeline-config-ui"
+alert-service = "pipeline-alert-service"
+snpfa = "pipeline-snpfa-service"
 kibana = "pipeline-kibana"
 grafana = "pipeline-grafana"
 consul-ui = "consul-ui"

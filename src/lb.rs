@@ -3,7 +3,7 @@ use pingora::lb::LoadBalancer;
 use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use crate::config::PPConfig;
+use crate::config::RPConfig;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Validation};
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
@@ -28,28 +28,28 @@ pub struct Context {
 pub struct NetIqLoadBalancer {
     pub nodes: Arc<ConsulNodes>,
     pub balancers: Arc<LoadBalancers>,
-    pub pp_config: PPConfig,
+    pub rp_config: RPConfig,
 }
 
 #[derive(Clone)]
 pub struct R53 {
-    pub pp_config: PPConfig,
+    pub rp_config: RPConfig,
 }
 
 #[derive(Clone)]
 pub struct Vault {
-    pub pp_config: PPConfig,
+    pub rp_config: RPConfig,
 }
 
 #[derive(Clone)]
 pub struct Web {
-    pub pp_config: PPConfig,
+    pub rp_config: RPConfig,
     pub nodes: Arc<DashMap<String, Vec<ConsulNode>>>,
 }
 
 #[derive(Clone)]
 pub struct LeaderRoutine{
-    pub pp_config: PPConfig,
+    pub rp_config: RPConfig,
     pub session_id: Arc<Mutex<String>>,
 }
 

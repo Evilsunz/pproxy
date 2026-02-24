@@ -1,4 +1,4 @@
-use crate::config::PPConfig;
+use crate::config::RPConfig;
 use anyhow::Error;
 use async_trait::async_trait;
 use aws_sdk_route53::config::http::HttpResponse;
@@ -18,15 +18,15 @@ use crate::utils::{get_res_record_sets, update_res_record_sets};
 use crate::{log_error, log_info};
 
 impl R53 {
-    pub fn new(pp_config: PPConfig) -> Self {
-        Self { pp_config }
+    pub fn new(rp_config: RPConfig) -> Self {
+        Self { rp_config }
     }
 
     pub fn non_async_r53_register(&self) {
         log_info!("Registering r53...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            match register_ip_route53(&self.pp_config).await {
+            match register_ip_route53(&self.rp_config).await {
                 Ok(_) => {}
                 Err(err) => {
                     log_error!("{:?}", err);
@@ -44,7 +44,7 @@ impl BackgroundService for R53 {
             tokio::select! {
                 _ = shutdown.changed() => {
                     log_info!("Shutting down (dereg r53)...");
-                    match deregister_ip_route53(&self.pp_config).await {
+                    match deregister_ip_route53(&self.rp_config).await {
                         Ok(_) => {}
                         Err(err) => {
                             log_error!("{:?}", err);
@@ -58,7 +58,7 @@ impl BackgroundService for R53 {
 }
 
 //TODO + add jitter
-pub async fn register_ip_route53(conf: &PPConfig) -> anyhow::Result<(), Error> {
+pub async fn register_ip_route53(conf: &RPConfig) -> anyhow::Result<(), Error> {
     let ip = conf.ip.as_ref().unwrap();
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
@@ -70,7 +70,7 @@ pub async fn register_ip_route53(conf: &PPConfig) -> anyhow::Result<(), Error> {
 
 //TODO add error handle
 //TODO + add jitter
-pub async fn deregister_ip_route53(conf: &PPConfig) -> anyhow::Result<(), Error> {
+pub async fn deregister_ip_route53(conf: &RPConfig) -> anyhow::Result<(), Error> {
     let ip = conf.ip.as_ref().unwrap();
     let mut fqdns = conf.fqdns.clone();
     fqdns.shuffle(&mut rng());
@@ -81,7 +81,7 @@ pub async fn deregister_ip_route53(conf: &PPConfig) -> anyhow::Result<(), Error>
 }
 
 async fn process<F>(
-    conf: PPConfig,
+    conf: RPConfig,
     fqdn: &str,
     ip: &str,
     func: F,

@@ -3,7 +3,7 @@ use std::path::Path;
 use std::str::FromStr;
 use ftail::Ftail;
 use log::LevelFilter;
-use crate::config::PPConfig;
+use crate::config::RPConfig;
 
 #[macro_export]
 macro_rules! log_info {
@@ -33,15 +33,15 @@ macro_rules! log_trace {
     };
 }
 
-pub fn init_log(conf : PPConfig) {
+pub fn init_log(conf : RPConfig) {
     let log_level = LevelFilter::from_str(&conf.log_level).unwrap();
-    fs::create_dir(conf.log_path.clone()).unwrap();
+    fs::create_dir_all(conf.log_path.clone()).unwrap();
     let logger = Ftail::new()
         //TODO dev prod profiles
         //.console(log_level)
         .daily_file(Path::new(&conf.log_path), log_level)
         .max_file_size(10)
-        .retention_days(30);
+        .retention_days(10);
     let logger = if conf.log_groups.is_empty() {
         logger
     } else {
