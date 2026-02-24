@@ -16,8 +16,8 @@ use crate::utils::{get_consul_nodes, get_res_record_sets, update_res_record_sets
 
 const CONSUL_CREATE_SESSION: &str = "v1/session/create";
 const CONSUL_RENEW_SESSION: &str = "v1/session/renew/";
-const CONSUL_ACQUIRE_LOCK: &str = "v1/kv/service/pproxy/leader?acquire=";
-const CONSUL_RELEASE_LOCK: &str = "v1/kv/service/pproxy/leader?release=";
+const CONSUL_ACQUIRE_LOCK: &str = "v1/kv/service/rproxy/leader?acquire=";
+const CONSUL_RELEASE_LOCK: &str = "v1/kv/service/rproxy/leader?release=";
 
 #[async_trait]
 impl BackgroundService for LeaderRoutine {
@@ -59,18 +59,18 @@ impl LeaderRoutine {
             //todo set leader to rp_config
             if leader {
                 self.rp_config.is_leader = Some(true);
-                if let Ok(pproxies) = get_consul_nodes(self.rp_config.consul_url.as_str(), "pproxy").await
+                if let Ok(rproxies) = get_consul_nodes(self.rp_config.consul_url.as_str(), "rproxy").await
                 {
-                    let pproxy_ips : Vec<ResourceRecord> = pproxies.iter().map(|n| {
+                    let rproxy_ips: Vec<ResourceRecord> = rproxies.iter().map(|n| {
                         ResourceRecord::builder().set_value(Some(n.address.clone())).build().unwrap()
                     }).collect();
                     for fqdn in &self.rp_config.fqdns{
                         let response = get_res_record_sets(client.clone(), self.rp_config.r53_zone_id.clone(), fqdn.clone()).await;
                         let existing_rr = response.resource_record_sets.get(0).unwrap().resource_records.clone().unwrap();
-                        let rez = compare_res_record(pproxy_ips.clone(), existing_rr.clone());
+                        let rez = compare_res_record(rproxy_ips.clone(), existing_rr.clone());
                         if !rez {
-                            log_warn!("Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Resetting to pproxies_ips", fqdn, existing_rr, pproxy_ips);
-                            let _ = update_res_record_sets(client.clone(), self.rp_config.r53_zone_id.clone(), fqdn.to_string(), pproxy_ips.clone()).await;
+                            log_warn!("Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Resetting to pproxies_ips", fqdn, existing_rr, rproxy_ips);
+                            let _ = update_res_record_sets(client.clone(), self.rp_config.r53_zone_id.clone(), fqdn.to_string(), rproxy_ips.clone()).await;
                         }
                     }
                 }
@@ -83,7 +83,7 @@ impl LeaderRoutine {
     async fn create_consul_session(&self) -> anyhow::Result<String> {
         //{"Name": "'`hostname`'", "TTL": "120s"}
         let mut payload = HashMap::new();
-        payload.insert("Name", "pproxy");
+        payload.insert("Name", "rproxy");
         payload.insert("TTL", "1000s");
         let client = reqwest::Client::new();
         let response = client.put(format!("{}{}", self.rp_config.consul_url, CONSUL_CREATE_SESSION)).json(&payload).send().await?;
@@ -102,7 +102,7 @@ impl LeaderRoutine {
 
     async fn acquire_consul_lock(&self, id : &str, ip : &str) -> anyhow::Result<bool> {
         let mut payload = HashMap::new();
-        payload.insert("Node", "pproxy");
+        payload.insert("Node", "rproxy");
         payload.insert("Ip", ip);
         let client = reqwest::Client::new();
         let response = client.put(format!("{}{}{}", self.rp_config.consul_url, CONSUL_ACQUIRE_LOCK, id)).json(&payload).send().await?;
@@ -113,7 +113,7 @@ impl LeaderRoutine {
 
     async fn release_consul_lock(&self, id : &str) -> anyhow::Result<bool> {
         let mut payload = HashMap::new();
-        payload.insert("Node", "pproxy");
+        payload.insert("Node", "rproxy");
         payload.insert("Ip", "0.0.0.0");
         let client = reqwest::Client::new();
         let response = client.put(format!("{}{}{}", self.rp_config.consul_url, CONSUL_RELEASE_LOCK, id)).json(&payload).send().await?;

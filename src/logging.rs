@@ -8,28 +8,28 @@ use crate::config::RPConfig;
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        log::info!(target: "pproxy", $($arg)*)
+        log::info!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
-        log::error!(target: "pproxy", $($arg)*)
+        log::error!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        log::warn!(target: "pproxy", $($arg)*)
+        log::warn!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_trace {
     ($($arg:tt)*) => {
-        log::trace!(target: "pproxy", $($arg)*)
+        log::trace!(target: "rproxy", $($arg)*)
     };
 }
 

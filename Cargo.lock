@@ -2962,40 +2962,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
-name = "pproxy"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "aws-config",
- "aws-sdk-route53",
- "axum",
- "axum-server",
- "base64 0.22.1",
- "bytes",
- "clap 4.5.52",
- "dashmap",
- "env_logger",
- "ftail",
- "jsonwebtoken",
- "log",
- "oauth2",
- "pem",
- "pingora",
- "pingora-core",
- "rand 0.9.2",
- "reqwest",
- "serde",
- "serde_derive",
- "serde_json",
- "tokio",
- "tokio-retry",
- "twelf",
- "vaultrs",
- "vaultrs-login",
-]
-
-[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3341,6 +3307,40 @@ dependencies = [
  "byteorder",
  "rmp",
  "serde",
+]
+
+[[package]]
+name = "rproxy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "aws-config",
+ "aws-sdk-route53",
+ "axum",
+ "axum-server",
+ "base64 0.22.1",
+ "bytes",
+ "clap 4.5.52",
+ "dashmap",
+ "env_logger",
+ "ftail",
+ "jsonwebtoken",
+ "log",
+ "oauth2",
+ "pem",
+ "pingora",
+ "pingora-core",
+ "rand 0.9.2",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+ "tokio-retry",
+ "twelf",
+ "vaultrs",
+ "vaultrs-login",
 ]
 
 [[package]]

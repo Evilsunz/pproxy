@@ -8,6 +8,7 @@ tls_chain_cert="./config/chain.pem"
 jwt_cert="./config/jwt.pem"
 jwt_private_cert="./config/jwt_private.pem"
 
+
 #vault_address = "https://localhost"
 #role_id = "adsadas"
 #secret_id = "asdasdsad"
@@ -20,9 +21,9 @@ jwt_private_cert="./config/jwt_private.pem"
 
 consul_pool_secs = 60
 consul_leader_pool_secs = 600
-log_path="/opt/pproxy/logs"
+log_path="/opt/rproxy/logs"
 log_level="INFO"
-log_groups= ["pproxy"]
+log_groups= ["rproxy"]
 static_consul_agent_ip_port="127.0.0.1:8500"
 
 #hostname(contains) -> consul service name

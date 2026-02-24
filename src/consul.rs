@@ -29,27 +29,31 @@ impl ConsulDiscovery {
 
     pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
         log_info!("Starting consul discovery...");
-        let mut local_cache: HashMapConsulNodes = HashMap::new();
-        let sem = Arc::new(Semaphore::new(16));
+
+        const MAX_CONCURRENCY: usize = 16;
+
+        let mut cache: HashMapConsulNodes = HashMap::new();
+        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENCY));
+        let poll_interval = Duration::from_secs(self.rp_config.consul_pool_secs);
 
         loop {
-            let consul_url = self.rp_config.consul_url.clone();
-            let service_names: Vec<String> = self
-                .rp_config
-                .host_to_upstream
-                .values()
-                .cloned()
-                .collect();
+            let consul_url = Arc::<str>::from(self.rp_config.consul_url.clone());
+            let service_names: Vec<String> = self.rp_config.host_to_upstream.values().cloned().collect();
 
             let mut join_set = JoinSet::new();
 
             for service_name in service_names {
-                let consul_url = consul_url.clone();
-                let sem = Arc::clone(&sem);
+                let consul_url = Arc::clone(&consul_url);
+                let semaphore = Arc::clone(&semaphore);
 
                 join_set.spawn(async move {
-                    let _permit = sem.acquire_owned().await;
-                    let res = get_consul_nodes(consul_url.as_str(), service_name.as_str()).await;
+                    let permit = semaphore.acquire_owned().await;
+                    if permit.is_err() {
+                        return (service_name, Err(anyhow::anyhow!("Semaphore closed while acquiring permit")));
+                    }
+                    let _permit = permit.unwrap();
+
+                    let res = get_consul_nodes(consul_url.as_ref(), service_name.as_str()).await;
                     (service_name, res)
                 });
             }
@@ -57,23 +61,25 @@ impl ConsulDiscovery {
             while let Some(joined) = join_set.join_next().await {
                 match joined {
                     Ok((service_name, Ok(nodes))) => {
-                        let changed = local_cache
-                            .get(service_name.as_str())
-                            .map_or(true, |cached| cached != &nodes);
+                        let changed = match cache.get(service_name.as_str()) {
+                            Some(cached_nodes) => cached_nodes != &nodes,
+                            None => true,
+                        };
 
                         if changed {
-                            let dash: ConsulNodes =
-                                DashMap::from_iter([(service_name.clone(), nodes.clone())]);
-                            local_cache.insert(service_name.clone(), nodes);
+                            let dash: ConsulNodes = DashMap::new();
+                            dash.insert(service_name.clone(), nodes.clone());
+
+                            cache.insert(service_name.clone(), nodes);
                             let _ = tx.send(dash).await;
                         }
                     }
                     Ok((service_name, Err(err))) => {
                         log_error!(
-                            "Error happened during consul nodes serde (proceeding) for {}: {}",
-                            service_name,
-                            err
-                        );
+                        "Error happened during consul nodes serde (proceeding) for {}: {}",
+                        service_name,
+                        err
+                    );
                     }
                     Err(join_err) => {
                         log_error!("Consul discovery task failed: {}", join_err);
@@ -81,7 +87,7 @@ impl ConsulDiscovery {
                 }
             }
 
-            sleep(Duration::from_secs(self.rp_config.consul_pool_secs)).await;
+            sleep(poll_interval).await;
         }
     }
 }

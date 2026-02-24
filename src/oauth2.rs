@@ -19,9 +19,9 @@ use crate::lb::{AuthClaims, AuthVerifier};
 
 fn main() {
     let sub = "max@comcast.com";
-    let tid = "pproxy";
-    let iss = "pproxy";
-    let aud = "pproxy";
+    let tid = "rproxy";
+    let iss = "rproxy";
+    let aud = "rproxy";
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
