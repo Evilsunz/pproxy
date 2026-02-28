@@ -62,8 +62,8 @@ impl ConsulDiscovery {
                 match joined {
                     Ok((service_name, Ok(nodes))) => {
                         let changed = match cache.get(service_name.as_str()) {
-                            Some(cached_nodes) => cached_nodes != &nodes,
-                            None => true,
+                            Some(cached_nodes) => (!nodes.is_empty() && cached_nodes != &nodes),
+                            None => !nodes.is_empty(),
                         };
 
                         if changed {

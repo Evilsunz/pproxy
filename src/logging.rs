@@ -1,52 +1,72 @@
-use std::fs;
-use std::path::Path;
-use std::str::FromStr;
-use ftail::Ftail;
-use log::LevelFilter;
+use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 use crate::config::RPConfig;
 
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        log::info!(target: "rproxy", $($arg)*)
+        tracing::info!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
-        log::error!(target: "rproxy", $($arg)*)
+        tracing::error!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        log::warn!(target: "rproxy", $($arg)*)
+        tracing::warn!(target: "rproxy", $($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_trace {
     ($($arg:tt)*) => {
-        log::trace!(target: "rproxy", $($arg)*)
+        tracing::trace!(target: "rproxy", $($arg)*)
     };
 }
 
-pub fn init_log(conf : RPConfig) {
-    let log_level = LevelFilter::from_str(&conf.log_level).unwrap();
-    fs::create_dir_all(conf.log_path.clone()).unwrap();
-    let logger = Ftail::new()
-        //TODO dev prod profiles
-        //.console(log_level)
-        .daily_file(Path::new(&conf.log_path), log_level)
-        .max_file_size(10)
-        .retention_days(10);
-    let logger = if conf.log_groups.is_empty() {
-        logger
-    } else {
-        let log_group_targets: Vec<&str> = conf.log_groups.iter().map(String::as_str).collect();
-        logger.filter_targets(log_group_targets)
-    };
-    let _ = logger.init();
+pub fn init_tracing(conf : RPConfig) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(conf.log_level));
+
+    // Dev
+    #[cfg(debug_assertions)]
+    {
+        let stdout_layer = fmt::layer()
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_thread_names(true);
+
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(stdout_layer)
+            .init();
+
+        None
+    }
+
+    // Prod
+    #[cfg(not(debug_assertions))]
+    {
+        let file_appender = tracing_appender::rolling::daily(conf.log_path, "rproxy");
+        let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+
+        let file_layer = fmt::layer()
+            .with_ansi(false)
+            .with_target(true)
+            .with_writer(non_blocking);
+
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(file_layer)
+            .init();
+
+        Some(guard) // keep this alive for the lifetime of the program!
+    }
 }

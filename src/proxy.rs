@@ -1,7 +1,7 @@
 use std::fmt::format;
 use crate::config::RPConfig;
 use crate::consul::ConsulDiscovery;
-use crate::lb::{ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
+use crate::lb::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::{log_error, log_info, log_trace};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -41,14 +41,17 @@ impl ProxyHttp for NetIqLoadBalancer {
                 context: Some(ImmutStr::Static("Hostname not resolved")),
             })
         })?;
-        // if hostname.contains("consul-ui") && session.req_header().uri.path() != "/stats" {
-        //     ///OAUTH2
-        //     let location = "http://localhost:7777/stats";
-        //     let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
-        //     resp.insert_header("Location", location)?;
-        //     session.write_response_header(Box::new(resp), true).await?;
-        //     return Ok(true);
-        // };
+        ///OAUTH2 challenge
+        if  self.rp_config.hosts_under_sso.contains(&hostname){
+            ///OAUTH2
+            match self.auth_verifier.verify_auth_cookie(session).await {
+                Ok(_) => {}
+                Err(_) => {
+                    return Ok(true);
+                }
+            };
+            return Ok(true);
+        };
 
         log_trace!("request summary {}", session.request_summary());
         let upstream = self.resolve_upstream(&hostname);
@@ -150,9 +153,11 @@ impl NetIqLoadBalancer {
         let balancer = LoadBalancer::<RoundRobin>::try_from_iter(static_consul_ui_ips).unwrap();
         let balancers = Arc::new(LoadBalancers::new());
         balancers.insert("consul-ui".to_string(), balancer);
+        let auth_verifier = AuthVerifier::new(rp_config.clone());
         Self {
             nodes: Arc::new(DashMap::new()),
             balancers,
+            auth_verifier,
             rp_config,
         }
     }

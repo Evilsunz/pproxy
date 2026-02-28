@@ -28,6 +28,7 @@ pub struct Context {
 pub struct NetIqLoadBalancer {
     pub nodes: Arc<ConsulNodes>,
     pub balancers: Arc<LoadBalancers>,
+    pub auth_verifier: AuthVerifier,
     pub rp_config: RPConfig,
 }
 
@@ -53,7 +54,9 @@ pub struct LeaderRoutine{
     pub session_id: Arc<Mutex<String>>,
 }
 
+#[derive(Clone)]
 pub struct AuthVerifier {
+    pub rp_config: RPConfig,
     pub decoding_key: DecodingKey,
     pub encoding_key: EncodingKey,
     pub validation: Validation,

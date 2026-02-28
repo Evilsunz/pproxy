@@ -17,7 +17,7 @@ use jsonwebtoken::crypto::CryptoProvider;
 use pingora::prelude::*;
 use crate::config::parse;
 use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web, AuthVerifier, AuthClaims};
-use crate::logging::init_log;
+use crate::logging::{init_tracing};
 
 fn main() {
 
@@ -27,7 +27,11 @@ fn main() {
         Err(e) => {panic!("Unable to load config : {}",e)}
     };
 
-    init_log(conf.clone());
+    //init_log(conf.clone());
+
+    let _guard = init_tracing(conf.clone());
+
+    tracing::info!(target: "rproxy", "server starting");
 
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone());
@@ -54,7 +58,8 @@ fn main() {
         let key_path = conf.tls_private_cert.clone();
         let mut tls_settings =
             pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
-        tls_settings.enable_h2();
+        // Do we support it ? 
+        //tls_settings.enable_h2();
         lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
     }
     my_server.add_service(consul_bg);

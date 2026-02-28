@@ -10,18 +10,18 @@ use crate::consul::VecConsulNode;
 
 const AWS_CHECK_IP_URL: &str = "http://checkip.amazonaws.com";
 //TODO HARDCODE!!!!!
-const IGNORED_EMPTY_CONSUL_SERVICE: &str = "consul-ui";
+const IGNORED_CONSUL_UI_SERVICE: &str = "consul-ui";
 
 pub fn resolve_ip() -> anyhow::Result<String> {
     let body = reqwest::blocking::get(AWS_CHECK_IP_URL)?.text()?;
-    Ok(body.trim_end().to_string())
+    Ok(body.trim().to_string())
 }
 
 pub async fn get_consul_nodes(consul_url :&str, service_name: &str) -> anyhow::Result<VecConsulNode> {
     let nodes = reqwest::get(format!("{}{}{}", consul_url,"v1/catalog/service/", service_name))
         .await?.json::<VecConsulNode>()
         .await?;
-    if nodes.is_empty() && service_name != IGNORED_EMPTY_CONSUL_SERVICE {
+    if nodes.is_empty() && service_name != IGNORED_CONSUL_UI_SERVICE {
         return Err(anyhow::anyhow!("No consul healthy service found for service {}", service_name));
     }
 

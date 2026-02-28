@@ -8,7 +8,12 @@ use crate::utils::{aws_r53_client, resolve_ip};
 #[derive(Parser, Debug)]
 #[command(version,long_about = None, ignore_errors=true)]
 pub struct Args {
-    #[arg(short, long, default_value_t = String::from("./config/rproxy.toml"), env("APP_CONFIG_PATH"))]
+    #[arg(
+      short = 't',
+      long = "rproxy-config",
+      default_value_t = String::from("/opt/rproxy/config/rproxy.toml"),
+      env("APP_CONFIG_PATH")
+    )]
     pub config_path: String,
 }
 
@@ -55,7 +60,15 @@ pub struct RPConfig {
 
     pub jwt_cert: String,
     pub jwt_private_cert: String,
-
+    pub hosts_under_sso: Vec<String>,
+    pub client_id: String,
+    pub client_secret: String,
+    pub auth_url: String,
+    pub token_url: String,
+    pub redirect_url: String,
+    pub scopes: Vec<String>,
+    
+    
     pub aws_access_key : String,
     pub aws_secret_key : String,
     pub r53_zone_id : String,

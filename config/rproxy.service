@@ -1,14 +1,15 @@
 [Unit]
-Description=Pproxy service.
+Description=Rproxy service.
 After=network.target consuld.service
 
 [Service]
-Environment=APP_CONFIG_PATH=/opt/pproxy/config/rproxy.toml
+LimitNOFILE=65536
+Environment=APP_CONFIG_PATH=/opt/rproxy/config/rproxy.toml
 User=root
-Type=forking
-PIDFile=/run/pproxy.pid
-WorkingDirectory=/opt/pproxy/
-ExecStart=/opt/pproxy/pproxy -d -c /opt/pproxy/config/core.conf
+Type=simple
+PIDFile=/run/rproxy.pid
+WorkingDirectory=/opt/rproxy/
+ExecStart=/opt/rproxy/rproxy -c /opt/rproxy/config/core.conf
 
 [Install]
 WantedBy=multi-user.target
