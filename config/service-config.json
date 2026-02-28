@@ -1,0 +1,17 @@
+{
+  "service": {
+    "name": "rproxy",
+    "port": 7777,
+    "checks": [
+      {
+        "id": "rproxy-7777",
+        "name": "RProxy health check",
+        "http": "http://localhost:7777/stats",
+        "tls_skip_verify": true,
+        "method": "GET",
+        "interval": "5s",
+        "timeout": "10s"
+      }
+    ]
+  }
+}

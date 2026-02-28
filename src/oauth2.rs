@@ -20,7 +20,7 @@ const COOKIE_HEADER_NAME: &str = "Cookie";
 enum AuthDecision {
     Exchange { code: String },
     RedirectToSso,
-    Proceed { jwt: String },
+    Proceed,
 }
 
 impl AuthVerifier {
@@ -69,27 +69,7 @@ impl AuthVerifier {
         }
     }
 
-    fn decide_auth(&self, uri: &Uri, cookie_header: Option<&str>) -> AuthDecision {
-        if let Some(code) = self.is_oauth_redirect_with_code(uri) {
-            return AuthDecision::Exchange { code };
-        }
-
-        let cookie_header = match cookie_header {
-            Some(v) => v,
-            None => return AuthDecision::RedirectToSso,
-        };
-
-        let jwt = match self.get_cookie_value(cookie_header, COOKIE_NAME) {
-            Some(v) => v,
-            None => return AuthDecision::RedirectToSso,
-        };
-
-        AuthDecision::Proceed { jwt }
-    }
-
-    // -------------------- existing code --------------------
-
-    pub async fn verify_auth_cookie(&self, session: &mut Session) -> anyhow::Result<bool> {
+    pub async fn verify_auth_cookie(&self, session: &mut Session) -> pingora::Result<bool> {
         log_trace!("Uri host{}", session.req_header().uri);
 
         let cookie_header = session
@@ -97,20 +77,36 @@ impl AuthVerifier {
             .and_then(|h| h.to_str().ok());
 
         match self.decide_auth(&session.req_header().uri, cookie_header) {
-            AuthDecision::Exchange { code } => self.exchange(&code),
-
+            AuthDecision::Exchange { code } => self.exchange(&code).await,
             AuthDecision::RedirectToSso => self.redirect_to_sso(session).await,
-
-            AuthDecision::Proceed { jwt } => match self.decode_jwt(&jwt) {
-                Ok(_) => Ok(false),//pass
-                Err(_) => self.redirect_to_sso(session).await,
-            },
+            AuthDecision::Proceed=>  {Ok(false)},
         }
     }
 
-    async fn redirect_to_sso(&self, session: &mut Session) -> anyhow::Result<bool> {
-        println!("Redirecting to SSO + req summary {}", session.request_summary());
-        println!();
+    fn decide_auth(&self, uri: &Uri, cookie_header: Option<&str>) -> AuthDecision {
+        if let Some(code) = self.is_oauth_redirect_with_code(uri) {
+            return AuthDecision::Exchange { code };
+        }
+
+        let Some(cookie_header) = cookie_header 
+        else {
+            return AuthDecision::RedirectToSso;
+        };
+
+        let Some(jwt) = self.is_have_cookie_value_by_name(cookie_header, COOKIE_NAME) 
+        else {
+            return AuthDecision::RedirectToSso;
+        };
+
+        if self.decode_jwt(&jwt).is_err() {
+            return AuthDecision::RedirectToSso;
+        }
+
+        AuthDecision::Proceed
+    }
+
+    async fn redirect_to_sso(&self, session: &mut Session) -> pingora::Result<bool> {
+        log_trace!("Redirecting to SSO + req summary {}", session.request_summary());
 
         let location = match self.get_redirect_url() {
             Ok(url) => url,
@@ -130,14 +126,14 @@ impl AuthVerifier {
         Some("".to_string())
     }
 
-    fn exchange(&self, cookie_header: &str) -> anyhow::Result<bool> {
+    async fn exchange(&self, cookie_header: &str) -> pingora::Result<bool> {
         //make exchange - if ok - encode jwt - return false -> proceed
         //                       else resp with nont uth response - > true
         let _ = self.encode_jwt("","");
         Ok(true)
     }
 
-    fn get_cookie_value(&self, cookie_header: &str, name: &str) -> Option<String> {
+    fn is_have_cookie_value_by_name(&self, cookie_header: &str, name: &str) -> Option<String> {
         for part in cookie_header.split(';') {
             let part = part.trim();
             if let Some(v) = part.strip_prefix(&format!("{name}=")) {
@@ -181,8 +177,6 @@ impl AuthVerifier {
             .set_token_uri(TokenUrl::new(self.rp_config.token_url.clone())?)
             .set_redirect_uri(RedirectUrl::new(self.rp_config.redirect_url.clone())?);
 
-        //let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-
         let (auth_url, _) = client
             .authorize_url(CsrfToken::new_random)
             .add_scopes(self.rp_config.scopes.iter().map(|s| Scope::new(s.to_string())))
@@ -194,17 +188,11 @@ impl AuthVerifier {
 
 }
 
-// -------------------- NEW: unit tests for pure logic --------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Т.к. decide_auth использует только is_oauth_redirect_with_code + get_cookie_value,
-    // можно создать "минимальный" AuthVerifier. Если ваш new() читает PEM и мешает тестам,
-    // то добавьте отдельный new_for_tests или создавайте verifier там, где ключи не нужны.
     fn verifier_minimal() -> AuthVerifier {
-        // Если тут упираетесь в чтение pem — скажите, я покажу самый маленький new_for_tests().
         AuthVerifier::new_for_tests(RPConfig::default())
     }
 
@@ -234,9 +222,7 @@ mod tests {
         let d = v.decide_auth(&uri, Some("rproxy_auth=jwt-here; other=1"));
         assert_eq!(
             d,
-            AuthDecision::Proceed {
-                jwt: "jwt-here".to_string()
-            }
+            AuthDecision::Proceed
         );
     }
 }

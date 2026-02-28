@@ -41,14 +41,7 @@ impl ProxyHttp for NetIqLoadBalancer {
         })?;
         //OAUTH2 challenge
         if  self.rp_config.hosts_under_sso.contains(&hostname){
-            //OAUTH2
-            match self.auth_verifier.verify_auth_cookie(session).await {
-                Ok(_) => {}
-                Err(_) => {
-                    return Ok(true);
-                }
-            };
-            return Ok(true);
+            return self.auth_verifier.verify_auth_cookie(session).await;
         };
 
         log_trace!("request summary {}", session.request_summary());

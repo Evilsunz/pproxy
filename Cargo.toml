@@ -32,8 +32,8 @@ log = "0.4.28"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2"
-oauth2 = "5.0.0"
-jsonwebtoken = {version = "10.3.0", default-features = false, features = ["rust_crypto", "use_pem"]}
+oauth2 = "5"
+jsonwebtoken = {version = "10", default-features = false, features = ["rust_crypto", "use_pem"]}
 
 [lints.clippy]
 panic = "warn"

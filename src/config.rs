@@ -46,7 +46,6 @@ pub struct RPConfig {
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub log_path: String,
     pub log_level: String,
-    pub log_groups: Vec<String>,
     
     pub static_consul_agent_ip_port: String,
     
