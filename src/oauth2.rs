@@ -1,6 +1,5 @@
 use crate::config::RPConfig;
 use crate::lb::{AuthClaims, AuthVerifier};
-use anyhow::anyhow;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use oauth2::basic::BasicClient;
 use oauth2::http::Uri;
@@ -11,8 +10,8 @@ use std::fs;
 
 use crate::{log_error, log_trace};
 
-const ISSUER: &str = "rproxy";
 const COOKIE_NAME: &str = "rproxy_auth";
+const ISSUER: &str = "rproxy";
 const COOKIE_HEADER_NAME: &str = "Cookie";
 
 // -------------------- NEW: pure decision layer --------------------
@@ -132,8 +131,9 @@ impl AuthVerifier {
     }
 
     fn exchange(&self, cookie_header: &str) -> anyhow::Result<bool> {
-        //make exchane - if ok - encode jwt - return false -> proceed
+        //make exchange - if ok - encode jwt - return false -> proceed
         //                       else resp with nont uth response - > true
+        let _ = self.encode_jwt("","");
         Ok(true)
     }
 
@@ -183,7 +183,7 @@ impl AuthVerifier {
 
         //let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-        let (auth_url, csrf_token) = client
+        let (auth_url, _) = client
             .authorize_url(CsrfToken::new_random)
             .add_scopes(self.rp_config.scopes.iter().map(|s| Scope::new(s.to_string())))
             //.set_pkce_challenge(pkce_challenge)

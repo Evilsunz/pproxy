@@ -10,13 +10,10 @@ mod web;
 mod logging;
 mod oauth2;
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use jsonwebtoken::{decode, encode, Algorithm, EncodingKey, Header};
-use jsonwebtoken::crypto::CryptoProvider;
+use std::path::{PathBuf};
 use pingora::prelude::*;
 use crate::config::parse;
-use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web, AuthVerifier, AuthClaims};
+use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
 use crate::logging::{init_tracing};
 
 fn main() {
@@ -56,7 +53,7 @@ fn main() {
         vault.non_async_fetch_ssl_certs();
         let cert_path = conf.tls_chain_cert.clone();
         let key_path = conf.tls_private_cert.clone();
-        let mut tls_settings =
+        let tls_settings =
             pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
         // Do we support it ? 
         //tls_settings.enable_h2();

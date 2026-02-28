@@ -1,4 +1,3 @@
-use std::fmt::format;
 use crate::config::RPConfig;
 use crate::consul::ConsulDiscovery;
 use crate::lb::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
@@ -7,7 +6,6 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use dashmap::DashMap;
 use pingora::ErrorSource::Upstream;
-use pingora::http::{RequestHeader, ResponseHeader, StatusCode};
 use pingora::lb::LoadBalancer;
 use pingora::prelude::{ProxyHttp, RoundRobin, Session};
 use pingora::{Error, HTTPStatus, ImmutStr, RetryType};
@@ -41,9 +39,9 @@ impl ProxyHttp for NetIqLoadBalancer {
                 context: Some(ImmutStr::Static("Hostname not resolved")),
             })
         })?;
-        ///OAUTH2 challenge
+        //OAUTH2 challenge
         if  self.rp_config.hosts_under_sso.contains(&hostname){
-            ///OAUTH2
+            //OAUTH2
             match self.auth_verifier.verify_auth_cookie(session).await {
                 Ok(_) => {}
                 Err(_) => {

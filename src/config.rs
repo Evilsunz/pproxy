@@ -43,6 +43,7 @@ pub struct RPConfig {
     pub consul_pool_secs : u64,
     pub consul_leader_pool_secs : u64,
 
+    #[cfg_attr(debug_assertions, allow(dead_code))]
     pub log_path: String,
     pub log_level: String,
     pub log_groups: Vec<String>,

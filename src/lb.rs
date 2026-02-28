@@ -4,7 +4,7 @@ use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use crate::config::RPConfig;
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
