@@ -67,6 +67,7 @@ pub struct RPConfig {
     pub token_url: String,
     pub redirect_url: String,
     pub scopes: Vec<String>,
+    pub sso_cookie_expire_dayz: u16,
 
 
     pub aws_access_key : String,

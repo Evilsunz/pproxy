@@ -39,15 +39,16 @@ impl ProxyHttp for NetIqLoadBalancer {
                 context: Some(ImmutStr::Static("Hostname not resolved")),
             })
         })?;
+
+        log_trace!("request summary {}", session.request_summary());
+        let upstream = self.resolve_upstream(&hostname);
+        ctx.hostname = Some(hostname.to_string());
+        ctx.fully_qualified_upstream = upstream;
+
         //OAUTH2 challenge
         if  self.rp_config.hosts_under_sso.contains(&hostname){
             return self.auth_verifier.verify_auth_cookie(session).await;
         };
-
-        log_trace!("request summary {}", session.request_summary());
-        let upstream = self.resolve_upstream(&hostname);
-        ctx.hostname = Some(hostname);
-        ctx.fully_qualified_upstream = upstream;
 
         Ok(false)
     }

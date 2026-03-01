@@ -69,8 +69,8 @@ pub struct AuthVerifier {
 pub struct AuthClaims {
     pub sub: String,
     pub tid: String,
-    pub exp: i64,
-    pub iat: i64,
+    pub exp: u64,
+    pub iat: u64,
     pub iss: String,
     pub aud: String,
 }

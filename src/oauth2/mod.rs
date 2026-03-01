@@ -157,8 +157,10 @@ impl AuthVerifier {
         let jwt = self.encode_jwt("", "").unwrap();
 
         let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
-        let cookie_value = format!("{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400", name = COOKIE_NAME, val = jwt);
+        let max_age: u64 = 60 * 60 * 24 * u64::from(self.rp_config.sso_cookie_expire_dayz);
+        let cookie_value = format!("{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={age}", name = COOKIE_NAME, val = jwt, age = max_age);
         resp.insert_header("Set-Cookie", cookie_value)?;
+        resp.insert_header("Location", "/")?;
 
         session.write_response_header(Box::new(resp), true).await?;
 
@@ -182,13 +184,12 @@ impl AuthVerifier {
     fn encode_jwt(&self, sub: &str, tid: &str) -> anyhow::Result<String> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs() as i64;
+            .as_secs();
 
         let claims = AuthClaims {
             sub: sub.to_string(),
             tid: tid.to_string(),
-            exp: now + (60 * 60 * 24),
-            //TODO HARDCODE
+            exp: now + (60 * 60 * 24 * u64::from(self.rp_config.sso_cookie_expire_dayz)),
             iat: now,
             iss: ISSUER.to_string(),
             aud: ISSUER.to_string(),
