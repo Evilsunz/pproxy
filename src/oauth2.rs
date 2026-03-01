@@ -1,27 +1,18 @@
 use crate::config::RPConfig;
-use crate::lb::{AuthClaims, AuthVerifier};
+use crate::lb::{AuthClaims, AuthDecision, AuthVerifier};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use oauth2::basic::BasicClient;
 use oauth2::http::Uri;
-use oauth2::{AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl};
+use oauth2::{AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl};
 use pingora::http::{ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use std::fs;
-
+use oauth2::url::Url;
 use crate::{log_error, log_trace};
 
 const COOKIE_NAME: &str = "rproxy_auth";
 const ISSUER: &str = "rproxy";
 const COOKIE_HEADER_NAME: &str = "Cookie";
-
-// -------------------- NEW: pure decision layer --------------------
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum AuthDecision {
-    Exchange { code: String },
-    RedirectToSso,
-    Proceed,
-}
 
 impl AuthVerifier {
 
@@ -55,11 +46,23 @@ impl AuthVerifier {
 
     #[cfg(test)]
     pub fn new_for_tests(rp_config: RPConfig) -> Self {
-        let secret = b"test-secret-placeholder";
-        let decoding_key = DecodingKey::from_secret(secret);
-        let encoding_key = EncodingKey::from_secret(secret);
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let pub_path = format!("{manifest_dir}/config/jwt.pem");
+        let priv_path = format!("{manifest_dir}/config/jwt_private.pem");
 
-        let validation = Validation::new(Algorithm::HS256);
+        let jwt_pub_pem = fs::read(&pub_path)
+            .unwrap_or_else(|e| panic!("Failed to read test public key '{pub_path}': {e}"));
+        let jwt_priv_pem = fs::read(&priv_path)
+            .unwrap_or_else(|e| panic!("Failed to read test private key '{priv_path}': {e}"));
+
+        let decoding_key =
+            DecodingKey::from_rsa_pem(&jwt_pub_pem).expect("Invalid RSA public key PEM");
+        let encoding_key =
+            EncodingKey::from_rsa_pem(&jwt_priv_pem).expect("Invalid RSA private key PEM");
+
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_issuer(&["rproxy"]);
+        validation.set_audience(&["rproxy"]);
 
         Self {
             rp_config,
@@ -88,12 +91,12 @@ impl AuthVerifier {
             return AuthDecision::Exchange { code };
         }
 
-        let Some(cookie_header) = cookie_header 
+        let Some(cookie_header) = cookie_header
         else {
             return AuthDecision::RedirectToSso;
         };
 
-        let Some(jwt) = self.is_have_cookie_value_by_name(cookie_header, COOKIE_NAME) 
+        let Some(jwt) = self.is_have_cookie_value_by_name(cookie_header, COOKIE_NAME)
         else {
             return AuthDecision::RedirectToSso;
         };
@@ -123,10 +126,21 @@ impl AuthVerifier {
     }
 
     fn is_oauth_redirect_with_code(&self, uri : &Uri) -> Option<String> {
-        Some("".to_string())
+        const HOST_PREFIX: &str = "http://localhost/";
+        let url = &(HOST_PREFIX.to_string() + &uri.to_string());
+        let Ok(parsed_url) = Url::parse(url)
+        else {
+            log_error!("Failed to parse URL: {}", url);
+            return None;
+        };
+        parsed_url
+            .query_pairs()
+            .find(|(key, _)| key == "code")
+            .map(|(_, code)| AuthorizationCode::new(code.into_owned()))
+            .map(|code| code.secret().to_owned())
     }
 
-    async fn exchange(&self, cookie_header: &str) -> pingora::Result<bool> {
+    async fn exchange(&self, code: &str) -> pingora::Result<bool> {
         //make exchange - if ok - encode jwt - return false -> proceed
         //                       else resp with nont uth response - > true
         let _ = self.encode_jwt("","");
@@ -192,13 +206,13 @@ impl AuthVerifier {
 mod tests {
     use super::*;
 
-    fn verifier_minimal() -> AuthVerifier {
+    fn mock_verifier() -> AuthVerifier {
         AuthVerifier::new_for_tests(RPConfig::default())
     }
 
     #[test]
     fn decide_auth_redirects_when_no_cookie_header() {
-        let v = verifier_minimal();
+        let v = mock_verifier();
         let uri: Uri = "http://example.local/".parse().unwrap();
 
         let d = v.decide_auth(&uri, None);
@@ -207,7 +221,7 @@ mod tests {
 
     #[test]
     fn decide_auth_redirects_when_cookie_missing() {
-        let v = verifier_minimal();
+        let v = mock_verifier();
         let uri: Uri = "http://example.local/".parse().unwrap();
 
         let d = v.decide_auth(&uri, Some("other=1; something=2"));
@@ -216,13 +230,12 @@ mod tests {
 
     #[test]
     fn decide_auth_proceeds_when_cookie_present() {
-        let v = verifier_minimal();
+        let v = mock_verifier();
         let uri: Uri = "http://example.local/".parse().unwrap();
+        
+        let jwt = v.encode_jwt("xxx","yyy").unwrap();
 
-        let d = v.decide_auth(&uri, Some("rproxy_auth=jwt-here; other=1"));
-        assert_eq!(
-            d,
-            AuthDecision::Proceed
-        );
+        let d = v.decide_auth(&uri, Some(&format!("rproxy_auth={}; other=1", jwt)));
+        assert_eq!(d, AuthDecision::Proceed);
     }
 }

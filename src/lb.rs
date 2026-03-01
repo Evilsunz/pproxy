@@ -71,3 +71,10 @@ pub struct AuthClaims {
     pub iss: String,
     pub aud: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuthDecision {
+    Exchange { code: String },
+    RedirectToSso,
+    Proceed,
+}
