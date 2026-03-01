@@ -1,27 +1,38 @@
 use crate::config::RPConfig;
 use crate::lb::{AuthClaims, AuthDecision, AuthVerifier};
+use crate::{log_error, log_trace};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use oauth2::basic::BasicClient;
+use oauth2::basic::{BasicClient};
 use oauth2::http::Uri;
-use oauth2::{AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl};
+use oauth2::url::Url;
+use oauth2::{
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
+    TokenResponse, TokenUrl,
+};
 use pingora::http::{ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use std::fs;
-use oauth2::url::Url;
-use crate::{log_error, log_trace};
+use pingora::ErrorType;
 
 const COOKIE_NAME: &str = "rproxy_auth";
 const ISSUER: &str = "rproxy";
 const COOKIE_HEADER_NAME: &str = "Cookie";
 
 impl AuthVerifier {
-
     pub fn new(rp_config: RPConfig) -> Self {
-        let jwt_pub_pem = fs::read(&rp_config.jwt_cert)
-            .unwrap_or_else(|e| panic!("Failed to read jwt_cert PEM file '{}': {e}", &rp_config.jwt_cert));
+        let jwt_pub_pem = fs::read(&rp_config.jwt_cert).unwrap_or_else(|e| {
+            panic!(
+                "Failed to read jwt_cert PEM file '{}': {e}",
+                &rp_config.jwt_cert
+            )
+        });
 
-        let jwt_priv_pem = fs::read(&rp_config.jwt_private_cert)
-            .unwrap_or_else(|e| panic!("Failed to read jwt_private_cert PEM file '{}': {e}", &rp_config.jwt_private_cert));
+        let jwt_priv_pem = fs::read(&rp_config.jwt_private_cert).unwrap_or_else(|e| {
+            panic!(
+                "Failed to read jwt_private_cert PEM file '{}': {e}",
+                &rp_config.jwt_private_cert
+            )
+        });
 
         let decoding_key: DecodingKey = match DecodingKey::from_rsa_pem(&jwt_pub_pem) {
             Ok(key) => key,
@@ -36,11 +47,20 @@ impl AuthVerifier {
         validation.set_issuer(&["rproxy"]);
         validation.set_audience(&["rproxy"]);
 
+        let client = BasicClient::new(ClientId::new(rp_config.client_id.clone()))
+            .set_client_secret(ClientSecret::new(rp_config.client_secret.clone()))
+            .set_auth_uri(AuthUrl::new(rp_config.auth_url.clone()).expect("Invalid auth url"))
+            .set_token_uri(TokenUrl::new(rp_config.token_url.clone()).expect("Invalid token url"))
+            .set_redirect_uri(
+                RedirectUrl::new(rp_config.redirect_url.clone()).expect("Invalid redirect url"),
+            );
+
         Self {
             rp_config,
             decoding_key,
             encoding_key,
             validation,
+            client,
         }
     }
 
@@ -64,11 +84,18 @@ impl AuthVerifier {
         validation.set_issuer(&["rproxy"]);
         validation.set_audience(&["rproxy"]);
 
+        let client = BasicClient::new(ClientId::new("".to_string()))
+            .set_client_secret(ClientSecret::new("".to_string()))
+            .set_auth_uri(AuthUrl::new("http://localhost".to_string()).expect("Invalid auth url"))
+            .set_token_uri(TokenUrl::new("http://localhost".to_string()).expect("Invalid token url"))
+            .set_redirect_uri(RedirectUrl::new("http://localhost".to_string()).expect("Invalid redirect url"));
+
         Self {
             rp_config,
             decoding_key,
             encoding_key,
             validation,
+            client
         }
     }
 
@@ -80,9 +107,9 @@ impl AuthVerifier {
             .and_then(|h| h.to_str().ok());
 
         match self.decide_auth(&session.req_header().uri, cookie_header) {
-            AuthDecision::Exchange { code } => self.exchange(&code).await,
+            AuthDecision::Exchange { code } => self.exchange(&code, session).await,
             AuthDecision::RedirectToSso => self.redirect_to_sso(session).await,
-            AuthDecision::Proceed=>  {Ok(false)},
+            AuthDecision::Proceed => Ok(false),
         }
     }
 
@@ -91,13 +118,11 @@ impl AuthVerifier {
             return AuthDecision::Exchange { code };
         }
 
-        let Some(cookie_header) = cookie_header
-        else {
+        let Some(cookie_header) = cookie_header else {
             return AuthDecision::RedirectToSso;
         };
 
-        let Some(jwt) = self.is_have_cookie_value_by_name(cookie_header, COOKIE_NAME)
-        else {
+        let Some(jwt) = self.is_have_cookie_value_by_name(cookie_header, COOKIE_NAME) else {
             return AuthDecision::RedirectToSso;
         };
 
@@ -109,7 +134,10 @@ impl AuthVerifier {
     }
 
     async fn redirect_to_sso(&self, session: &mut Session) -> pingora::Result<bool> {
-        log_trace!("Redirecting to SSO + req summary {}", session.request_summary());
+        log_trace!(
+            "Redirecting to SSO + req summary {}",
+            session.request_summary()
+        );
 
         let location = match self.get_redirect_url() {
             Ok(url) => url,
@@ -125,11 +153,10 @@ impl AuthVerifier {
         Ok(true)
     }
 
-    fn is_oauth_redirect_with_code(&self, uri : &Uri) -> Option<String> {
+    fn is_oauth_redirect_with_code(&self, uri: &Uri) -> Option<String> {
         const HOST_PREFIX: &str = "http://localhost/";
         let url = &(HOST_PREFIX.to_string() + &uri.to_string());
-        let Ok(parsed_url) = Url::parse(url)
-        else {
+        let Ok(parsed_url) = Url::parse(url) else {
             log_error!("Failed to parse URL: {}", url);
             return None;
         };
@@ -140,10 +167,33 @@ impl AuthVerifier {
             .map(|code| code.secret().to_owned())
     }
 
-    async fn exchange(&self, code: &str) -> pingora::Result<bool> {
+    async fn exchange(&self, code: &str, session: &mut Session) -> pingora::Result<bool> {
         //make exchange - if ok - encode jwt - return false -> proceed
-        //                       else resp with nont uth response - > true
-        let _ = self.encode_jwt("","");
+        //                       else resp with non auth response - > true
+
+        let http_client = reqwest::ClientBuilder::new()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Client should build");
+
+        let token = match self.client.exchange_code(AuthorizationCode::new(code.to_string())).request_async(&http_client).await {
+            Ok(t) => {t}
+            Err(_) => {
+                return Err(pingora::Error::new(ErrorType::HTTPStatus(401)))
+            }
+        };
+
+        println!("Returned the following token:\n{:?}\n", token.access_token().secret());
+        println!("Token extra f: {:?}", token.extra_fields());
+
+        let jwt = self.encode_jwt("", "").unwrap();
+
+        let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
+        let cookie_value = format!("{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400", name = COOKIE_NAME, val = jwt);
+        resp.insert_header("Set-Cookie", cookie_value)?;
+
+        session.write_response_header(Box::new(resp), true).await?;
+
         Ok(true)
     }
 
@@ -193,13 +243,17 @@ impl AuthVerifier {
 
         let (auth_url, _) = client
             .authorize_url(CsrfToken::new_random)
-            .add_scopes(self.rp_config.scopes.iter().map(|s| Scope::new(s.to_string())))
+            .add_scopes(
+                self.rp_config
+                    .scopes
+                    .iter()
+                    .map(|s| Scope::new(s.to_string())),
+            )
             //.set_pkce_challenge(pkce_challenge)
             .url();
 
         Ok(auth_url.to_string())
     }
-
 }
 
 #[cfg(test)]
@@ -231,18 +285,25 @@ mod tests {
     #[test]
     fn decide_auth_redirects_when_code_query_param_is_present() {
         let v = mock_verifier();
-        let uri: Uri = "http://example.local/?code=abababbsdkajsdlkasl".parse().unwrap();
+        let uri: Uri = "http://example.local/?code=abababbsdkajsdlkasl"
+            .parse()
+            .unwrap();
 
         let d = v.decide_auth(&uri, None);
-        assert_eq!(d, AuthDecision::Exchange { code: "abababbsdkajsdlkasl".to_string() });
+        assert_eq!(
+            d,
+            AuthDecision::Exchange {
+                code: "abababbsdkajsdlkasl".to_string()
+            }
+        );
     }
 
     #[test]
     fn decide_auth_proceeds_when_cookie_present() {
         let v = mock_verifier();
         let uri: Uri = "http://example.local/".parse().unwrap();
-        
-        let jwt = v.encode_jwt("xxx","yyy").unwrap();
+
+        let jwt = v.encode_jwt("xxx", "yyy").unwrap();
 
         let d = v.decide_auth(&uri, Some(&format!("rproxy_auth={}; other=1", jwt)));
         assert_eq!(d, AuthDecision::Proceed);
@@ -253,8 +314,10 @@ mod tests {
         let v = mock_verifier();
         let uri: Uri = "http://example.local/".parse().unwrap();
 
-        let d = v.decide_auth(&uri, Some(&format!("rproxy_auth=asdasdasdasdasdasd; other=1")));
+        let d = v.decide_auth(
+            &uri,
+            Some(&format!("rproxy_auth=asdasdasdasdasdasd; other=1")),
+        );
         assert_eq!(d, AuthDecision::RedirectToSso);
     }
-
 }
