@@ -130,7 +130,7 @@ fn compare_res_record(x: Vec<ResourceRecord>, v: Vec<ResourceRecord>) -> bool {
         .into_iter()
         .map(|rr| rr.value.clone())
         .collect();
-    
+
     let mut record_set: Vec<String> = v
         .into_iter()
         .map(|rr| rr.value.clone())
