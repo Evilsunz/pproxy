@@ -67,41 +67,6 @@ impl AuthVerifier {
         }
     }
 
-    #[cfg(test)]
-    pub fn new_for_tests(rp_config: RPConfig) -> Self {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let pub_path = format!("{manifest_dir}/config/jwt.pem");
-        let priv_path = format!("{manifest_dir}/config/jwt_private.pem");
-
-        let jwt_pub_pem = fs::read(&pub_path)
-            .unwrap_or_else(|e| panic!("Failed to read test public key '{pub_path}': {e}"));
-        let jwt_priv_pem = fs::read(&priv_path)
-            .unwrap_or_else(|e| panic!("Failed to read test private key '{priv_path}': {e}"));
-
-        let decoding_key =
-            DecodingKey::from_rsa_pem(&jwt_pub_pem).expect("Invalid RSA public key PEM");
-        let encoding_key =
-            EncodingKey::from_rsa_pem(&jwt_priv_pem).expect("Invalid RSA private key PEM");
-
-        let mut validation = Validation::new(Algorithm::RS256);
-        validation.set_issuer(&["rproxy"]);
-        validation.set_audience(&["rproxy"]);
-
-        let client = BasicClient::new(ClientId::new("".to_string()))
-            .set_client_secret(ClientSecret::new("".to_string()))
-            .set_auth_uri(AuthUrl::new("http://localhost".to_string()).expect("Invalid auth url"))
-            .set_token_uri(TokenUrl::new("http://localhost".to_string()).expect("Invalid token url"))
-            .set_redirect_uri(RedirectUrl::new("http://localhost".to_string()).expect("Invalid redirect url"));
-
-        Self {
-            rp_config,
-            decoding_key,
-            encoding_key,
-            validation,
-            client
-        }
-    }
-
     pub async fn verify_auth_cookie(&self, session: &mut Session) -> pingora::Result<bool> {
         log_trace!("Uri host{}", session.req_header().uri);
 
