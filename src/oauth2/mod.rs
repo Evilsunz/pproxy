@@ -151,9 +151,6 @@ impl AuthVerifier {
             }
         };
 
-        println!("Returned the following token:\n{:?}\n", token.access_token().secret());
-        println!("Token extra f: {:?}", token.extra_fields());
-
         let jwt = self.encode_jwt("", "").unwrap();
 
         let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
@@ -203,14 +200,8 @@ impl AuthVerifier {
     }
 
     fn get_redirect_url(&self) -> anyhow::Result<String> {
-        //TODO move to init ?
-        let client = BasicClient::new(ClientId::new(self.rp_config.client_id.clone()))
-            .set_client_secret(ClientSecret::new(self.rp_config.client_secret.clone()))
-            .set_auth_uri(AuthUrl::new(self.rp_config.auth_url.clone())?)
-            .set_token_uri(TokenUrl::new(self.rp_config.token_url.clone())?)
-            .set_redirect_uri(RedirectUrl::new(self.rp_config.redirect_url.clone())?);
 
-        let (auth_url, _) = client
+        let (auth_url, _) = self.client
             .authorize_url(CsrfToken::new_random)
             .add_scopes(
                 self.rp_config
@@ -218,7 +209,6 @@ impl AuthVerifier {
                     .iter()
                     .map(|s| Scope::new(s.to_string())),
             )
-            //.set_pkce_challenge(pkce_challenge)
             .url();
 
         Ok(auth_url.to_string())
