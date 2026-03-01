@@ -11,7 +11,7 @@ use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use serde_json::Value;
 use crate::config::RPConfig;
-use crate::lb::{LeaderRoutine};
+use crate::structs::{LeaderRoutine};
 use crate::{log_info, log_warn};
 use crate::utils::{get_consul_nodes, get_res_record_sets, update_res_record_sets};
 

@@ -1,4 +1,4 @@
-mod lb;
+mod structs;
 mod consul;
 mod config;
 mod vault;
@@ -13,8 +13,8 @@ mod oauth2;
 use std::path::{PathBuf};
 use pingora::prelude::*;
 use crate::config::parse;
-use crate::lb::{R53, NetIqLoadBalancer, Vault, LeaderRoutine, Web};
 use crate::logging::{init_tracing};
+use crate::structs::{LeaderRoutine, NetIqLoadBalancer, Vault, Web, R53};
 
 fn main() {
 

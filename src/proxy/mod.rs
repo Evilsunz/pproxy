@@ -1,6 +1,6 @@
 use crate::config::RPConfig;
 use crate::consul::ConsulDiscovery;
-use crate::lb::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
+use crate::structs::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::{log_error, log_info, log_trace};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -62,7 +62,7 @@ impl ProxyHttp for NetIqLoadBalancer {
             None => {
                 if let Err(e) = _session
                     .respond_error_with_body(502, Bytes::from("502 Bad Gateway\n"))
-                    .await 
+                    .await
                 {
                     log_error!("Failed to send error response: {:?}", e);
                 }
@@ -88,8 +88,8 @@ impl ProxyHttp for NetIqLoadBalancer {
                 }));
             },
         }
-        .select(b"", 256)
-        .unwrap();
+            .select(b"", 256)
+            .unwrap();
         let peer = Box::new(HttpPeer::new(
             upstream,
             false,

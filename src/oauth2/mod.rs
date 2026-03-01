@@ -2,7 +2,7 @@
 mod tests;
 
 use crate::config::RPConfig;
-use crate::lb::{AuthClaims, AuthDecision, AuthVerifier};
+use crate::structs::{AuthClaims, AuthDecision, AuthVerifier};
 use crate::{log_error, log_trace};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use oauth2::basic::{BasicClient};

@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use crate::config::RPConfig;
-use crate::lb::{ConsulNode, Web};
+use crate::structs::{ConsulNode, Web};
 use serde_json::{Value, json};
 use crate::log_info;
 
@@ -60,12 +60,12 @@ impl Web {
                 (upstream, json!(endpoints))
             })
             .collect::<serde_json::Map<String, Value>>();
-        
+
         Json(json!({
         "status": "OK",
         "leader": self.rp_config.is_leader.unwrap_or(false),
         "nodes" : nodes
     }))
     }
-    
+
 }

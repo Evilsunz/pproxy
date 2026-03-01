@@ -4,13 +4,13 @@ use dashmap::DashMap;
 use pingora::prelude::sleep;
 use tokio::sync::mpsc::Sender;
 use crate::config::RPConfig;
-use crate::lb::{ConsulNode, ConsulNodes};
 use crate::{log_error, log_info};
 use crate::utils::get_consul_nodes;
 
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use std::sync::Arc;
+use crate::structs::{ConsulNode, ConsulNodes};
 
 pub type VecConsulNode = Vec<ConsulNode>;
 pub type HashMapConsulNodes = HashMap<String, VecConsulNode>;
@@ -91,5 +91,3 @@ impl ConsulDiscovery {
         }
     }
 }
-
-

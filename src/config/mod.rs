@@ -46,9 +46,9 @@ pub struct RPConfig {
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub log_path: String,
     pub log_level: String,
-    
+
     pub static_consul_agent_ip_port: String,
-    
+
     pub vault_address : String,
     pub role_id : String,
     pub secret_id : String,
@@ -67,8 +67,8 @@ pub struct RPConfig {
     pub token_url: String,
     pub redirect_url: String,
     pub scopes: Vec<String>,
-    
-    
+
+
     pub aws_access_key : String,
     pub aws_secret_key : String,
     pub r53_zone_id : String,

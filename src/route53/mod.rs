@@ -13,7 +13,7 @@ use rand::rng;
 use rand::seq::SliceRandom;
 use tokio::runtime::Runtime;
 
-use crate::lb::R53;
+use crate::structs::R53;
 use crate::utils::{get_res_record_sets, update_res_record_sets};
 use crate::{log_error, log_info};
 
@@ -108,7 +108,7 @@ where
         fqdn.to_string(),
         new_rr,
     )
-    .await
+        .await
 }
 
 fn add_res_record(ip: &str, mut v: Vec<ResourceRecord>) -> Vec<ResourceRecord> {

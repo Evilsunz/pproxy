@@ -13,7 +13,7 @@ use crate::config::RPConfig;
 use anyhow::{Error, Result};
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
-use crate::lb::Vault;
+use crate::structs::Vault;
 use crate::{log_error, log_info};
 
 impl Vault {
@@ -23,7 +23,7 @@ impl Vault {
             rp_config,
         }
     }
-    
+
     pub fn non_async_fetch_ssl_certs(&self){
         log_info!("Fetching certs...");
         let rt = Runtime::new().unwrap();
@@ -65,10 +65,10 @@ async fn internal_fetch_ssl_certs(conf: &RPConfig) -> Result<(), Error> {
 
     let vec = BASE64_STANDARD.decode(full_cert.get("data").unwrap())?;
     let pem = parse_many(vec)?;
-    
+
     //Writing private [0] cert to separate a file
     std::fs::write(conf.tls_private_cert.clone(), pem[0].clone().to_string())?;
-    
+
     //Writing another cert chain [1..] to separate a file
     let mut f = File::create(conf.tls_chain_cert.clone())?;
     for i in pem[1..].iter() {

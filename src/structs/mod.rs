@@ -3,10 +3,10 @@ use pingora::lb::LoadBalancer;
 use pingora::prelude::{RoundRobin};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use crate::config::RPConfig;
 use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
 use oauth2::basic::{BasicRevocationErrorResponse, BasicTokenIntrospectionResponse, BasicTokenResponse};
 use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
+use crate::config::RPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
