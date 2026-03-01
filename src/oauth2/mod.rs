@@ -15,7 +15,10 @@ use oauth2::{
 use pingora::http::{ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use std::fs;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use pingora::ErrorType;
+use serde_json::Value;
 
 const COOKIE_NAME: &str = "rproxy_auth";
 const ISSUER: &str = "rproxy";
@@ -136,9 +139,6 @@ impl AuthVerifier {
     }
 
     async fn exchange(&self, code: &str, session: &mut Session) -> pingora::Result<bool> {
-        //make exchange - if ok - encode jwt - return false -> proceed
-        //                       else resp with non auth response - > true
-
         let http_client = reqwest::ClientBuilder::new()
             .redirect(reqwest::redirect::Policy::none())
             .build()
@@ -151,14 +151,21 @@ impl AuthVerifier {
             }
         };
 
-        let jwt = self.encode_jwt("", "").unwrap();
 
-        let mut resp = ResponseHeader::build(StatusCode::FOUND, Some(0))?;
-        let max_age: u64 = 60 * 60 * 24 * u64::from(self.rp_config.sso_cookie_expire_dayz);
+        let jwt = token.access_token().secret();
+        let claims = self.decode_jwt_unverified(jwt).await?;
+        let name = claims.get("name").and_then(Value::as_str).unwrap_or("name_unknown");
+        let tid = claims.get("tid").and_then(Value::as_str).unwrap_or("tid_unknown");
+
+        let jwt = self.encode_jwt(name, tid).unwrap();
+
+        const SECS_PER_DAY: u64 = 24 * 60 * 60;
+        let mut resp = ResponseHeader::build(StatusCode::SEE_OTHER, Some(0))?;
+        let days = u64::from(self.rp_config.sso_cookie_expire_dayz);
+        let max_age = SECS_PER_DAY.saturating_mul(days);
         let cookie_value = format!("{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={age}", name = COOKIE_NAME, val = jwt, age = max_age);
         resp.insert_header("Set-Cookie", cookie_value)?;
         resp.insert_header("Location", "/")?;
-
         session.write_response_header(Box::new(resp), true).await?;
 
         Ok(true)
@@ -213,4 +220,14 @@ impl AuthVerifier {
 
         Ok(auth_url.to_string())
     }
+
+    async fn decode_jwt_unverified(&self, jwt: &str) -> Result<(Value), pingora::Error> {
+        let parts: Vec<&str> = jwt.split('.').collect();
+        if parts.len() != 3 {
+            return Err(*pingora::Error::new(ErrorType::HTTPStatus(401)));
+        }
+        let claims = URL_SAFE_NO_PAD.decode(parts[1]).map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))?;
+        serde_json::from_slice::<Value>(&claims).map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))
+    }
+    
 }
