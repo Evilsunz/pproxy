@@ -24,7 +24,7 @@ fn decide_auth_redirects_when_cookie_missing() {
 }
 
 #[test]
-fn decide_auth_redirects_when_code_query_param_is_present() {
+fn decide_auth_exchanges_when_code_query_param_is_present() {
     let v = mock_verifier();
     let uri: Uri = "http://example.local/?code=abababbsdkajsdlkasl"
         .parse()
@@ -40,7 +40,7 @@ fn decide_auth_redirects_when_code_query_param_is_present() {
 }
 
 #[test]
-fn decide_auth_proceeds_when_cookie_present() {
+fn decide_auth_proceeds_when_cookie_present_and_decodable() {
     let v = mock_verifier();
     let uri: Uri = "http://example.local/".parse().unwrap();
 
@@ -51,7 +51,7 @@ fn decide_auth_proceeds_when_cookie_present() {
 }
 
 #[test]
-fn decide_auth_proceeds_when_cookie_present_jwt_malformed() {
+fn decide_auth_redirects_when_cookie_present_jwt_malformed() {
     let v = mock_verifier();
     let uri: Uri = "http://example.local/".parse().unwrap();
 
