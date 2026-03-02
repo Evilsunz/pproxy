@@ -1,27 +1,28 @@
-mod structs;
-mod consul;
 mod config;
-mod vault;
-mod route53;
-mod utils;
-mod proxy;
+mod consul;
 mod leader;
-mod web;
 mod logging;
 mod oauth2;
+mod proxy;
+mod route53;
+mod structs;
+mod utils;
+mod vault;
+mod web;
 
-use std::path::{PathBuf};
-use pingora::prelude::*;
 use crate::config::parse;
-use crate::logging::{init_tracing};
-use crate::structs::{LeaderRoutine, NetIqLoadBalancer, Vault, Web, R53};
+use crate::logging::init_tracing;
+use crate::structs::{LeaderRoutine, NetIqLoadBalancer, R53, Vault, Web};
+use pingora::prelude::*;
+use std::path::PathBuf;
 
 fn main() {
-
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
-        Ok(c) => {c}
-        Err(e) => {panic!("Unable to load config : {}",e)}
+        Ok(c) => c,
+        Err(e) => {
+            panic!("Unable to load config : {}", e)
+        }
     };
 
     //init_log(conf.clone());
@@ -46,18 +47,19 @@ fn main() {
     let leader_bg = background_service("leader-background", leader);
     let web_bg = background_service("web-background", web);
 
-    let mut  lb = http_proxy_service(&my_server.configuration, lb);
+    let mut lb = http_proxy_service(&my_server.configuration, lb);
     //lb.add_tcp(&format!("0.0.0.0:{}", conf.port));
 
     if conf.tls_enabled {
         vault.non_async_fetch_ssl_certs();
         let cert_path = conf.tls_chain_cert.clone();
         let key_path = conf.tls_private_cert.clone();
-        let tls_settings =
+        let mut tls_settings =
             pingora_core::listeners::tls::TlsSettings::intermediate(&cert_path, &key_path).unwrap();
-        // Do we support it ? 
-        //tls_settings.enable_h2();
-        lb.add_tls_with_settings(&format!("0.0.0.0:{}" , conf.tls_port), None, tls_settings);
+        if conf.tls_enable_h2{
+            tls_settings.enable_h2();
+        }
+        lb.add_tls_with_settings(&format!("0.0.0.0:{}", conf.tls_port), None, tls_settings);
     }
     my_server.add_service(consul_bg);
     my_server.add_service(r53_bg);

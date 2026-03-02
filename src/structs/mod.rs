@@ -1,12 +1,14 @@
+use crate::config::RPConfig;
 use dashmap::DashMap;
+use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
+use oauth2::basic::{
+    BasicRevocationErrorResponse, BasicTokenIntrospectionResponse, BasicTokenResponse,
+};
+use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
 use pingora::lb::LoadBalancer;
-use pingora::prelude::{RoundRobin};
+use pingora::prelude::RoundRobin;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
-use oauth2::basic::{BasicRevocationErrorResponse, BasicTokenIntrospectionResponse, BasicTokenResponse};
-use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
-use crate::config::RPConfig;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
@@ -51,7 +53,7 @@ pub struct Web {
 }
 
 #[derive(Clone)]
-pub struct LeaderRoutine{
+pub struct LeaderRoutine {
     pub rp_config: RPConfig,
     pub session_id: Arc<Mutex<String>>,
 }
@@ -62,7 +64,18 @@ pub struct AuthVerifier {
     pub decoding_key: DecodingKey,
     pub encoding_key: EncodingKey,
     pub validation: Validation,
-    pub client: oauth2::Client<oauth2::basic::BasicErrorResponse, BasicTokenResponse, BasicTokenIntrospectionResponse, StandardRevocableToken, BasicRevocationErrorResponse, EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>
+    pub client: oauth2::Client<
+        oauth2::basic::BasicErrorResponse,
+        BasicTokenResponse,
+        BasicTokenIntrospectionResponse,
+        StandardRevocableToken,
+        BasicRevocationErrorResponse,
+        EndpointSet,
+        EndpointNotSet,
+        EndpointNotSet,
+        EndpointNotSet,
+        EndpointSet,
+    >,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

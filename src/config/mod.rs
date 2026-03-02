@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use clap::Parser;
-use std::path::PathBuf;
-use aws_sdk_route53::Client;
-use twelf::{config, Layer, Error};
 use crate::utils::{aws_r53_client, resolve_ip};
+use aws_sdk_route53::Client;
+use clap::Parser;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use twelf::{Error, Layer, config};
 
 #[derive(Parser, Debug)]
 #[command(version,long_about = None, ignore_errors=true)]
@@ -36,12 +36,12 @@ pub fn load(path: PathBuf) -> Result<RPConfig, Error> {
 #[config]
 #[derive(Debug, Default, Clone)]
 pub struct RPConfig {
-    pub port : u64,
-    pub tls_port : u64,
+    pub port: u64,
+    pub tls_port: u64,
 
-    pub consul_url : String,
-    pub consul_pool_secs : u64,
-    pub consul_leader_pool_secs : u64,
+    pub consul_url: String,
+    pub consul_pool_secs: u64,
+    pub consul_leader_pool_secs: u64,
 
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub log_path: String,
@@ -49,15 +49,16 @@ pub struct RPConfig {
 
     pub static_consul_agent_ip_port: String,
 
-    pub vault_address : String,
-    pub role_id : String,
-    pub secret_id : String,
-    pub path_to_cert_secret : String,
+    pub vault_address: String,
+    pub role_id: String,
+    pub secret_id: String,
+    pub path_to_cert_secret: String,
 
-    pub tls_enabled : bool,
-    pub tls_private_cert : String,
-    pub tls_chain_cert : String,
-
+    pub tls_enabled: bool,
+    pub tls_private_cert: String,
+    pub tls_chain_cert: String,
+    pub tls_enable_h2: bool,
+    
     pub jwt_cert: String,
     pub jwt_private_cert: String,
     pub hosts_under_sso: Vec<String>,
@@ -69,18 +70,17 @@ pub struct RPConfig {
     pub scopes: Vec<String>,
     pub sso_cookie_expire_dayz: u16,
 
+    pub aws_access_key: String,
+    pub aws_secret_key: String,
+    pub r53_zone_id: String,
 
-    pub aws_access_key : String,
-    pub aws_secret_key : String,
-    pub r53_zone_id : String,
-
-    pub host_to_upstream : HashMap<String, String>,
-    pub fqdns : Vec<String>,
+    pub host_to_upstream: HashMap<String, String>,
+    pub fqdns: Vec<String>,
 
     #[serde(skip, default)]
-    pub ip : Option<String>,
+    pub ip: Option<String>,
     #[serde(skip, default)]
-    pub aws_r53_client : Option<Client>,
+    pub aws_r53_client: Option<Client>,
     #[serde(skip, default)]
-    pub is_leader : Option<bool>,
+    pub is_leader: Option<bool>,
 }

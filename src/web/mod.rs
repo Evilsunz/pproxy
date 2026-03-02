@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use crate::config::RPConfig;
+use crate::log_info;
+use crate::structs::{ConsulNode, Web};
 use async_trait::async_trait;
-use axum::{Json, Router};
 use axum::response::Redirect;
 use axum::routing::get;
+use axum::{Json, Router};
 use dashmap::DashMap;
 use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
-use crate::config::RPConfig;
-use crate::structs::{ConsulNode, Web};
 use serde_json::{Value, json};
-use crate::log_info;
+use std::sync::Arc;
 
 #[async_trait]
 impl BackgroundService for Web {
@@ -28,21 +28,28 @@ impl BackgroundService for Web {
 }
 
 impl Web {
-
     pub fn new(rp_config: RPConfig, nodes: Arc<DashMap<String, Vec<ConsulNode>>>) -> Self {
-        Self {
-            rp_config,
-            nodes,
-        }
+        Self { rp_config, nodes }
     }
 
     pub async fn bind_http(&self) {
         let self_clone = self.clone();
         let router = Router::new()
             .route("/", get(|| async { Redirect::permanent("/stats") }))
-            .route("/stats", get(move || async move { self_clone.stats().await }));
-        log_info!("{}", format!("Listening on http://0.0.0.0:{} for stats endpoint", self.rp_config.port));
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",self.rp_config.port)).await.unwrap();
+            .route(
+                "/stats",
+                get(move || async move { self_clone.stats().await }),
+            );
+        log_info!(
+            "{}",
+            format!(
+                "Listening on http://0.0.0.0:{} for stats endpoint",
+                self.rp_config.port
+            )
+        );
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.rp_config.port))
+            .await
+            .unwrap();
         axum::serve(listener, router).await.unwrap();
     }
 
@@ -62,10 +69,9 @@ impl Web {
             .collect::<serde_json::Map<String, Value>>();
 
         Json(json!({
-        "status": "OK",
-        "leader": self.rp_config.is_leader.unwrap_or(false),
-        "nodes" : nodes
-    }))
+            "status": "OK",
+            "leader": self.rp_config.is_leader.unwrap_or(false),
+            "nodes" : nodes
+        }))
     }
-
 }

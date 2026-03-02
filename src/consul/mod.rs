@@ -1,30 +1,27 @@
-use std::collections::HashMap;
-use std::time::Duration;
+use crate::config::RPConfig;
+use crate::utils::get_consul_nodes;
+use crate::{log_error, log_info};
 use dashmap::DashMap;
 use pingora::prelude::sleep;
+use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::mpsc::Sender;
-use crate::config::RPConfig;
-use crate::{log_error, log_info};
-use crate::utils::get_consul_nodes;
 
+use crate::structs::{ConsulNode, ConsulNodes};
+use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
-use std::sync::Arc;
-use crate::structs::{ConsulNode, ConsulNodes};
 
 pub type VecConsulNode = Vec<ConsulNode>;
 pub type HashMapConsulNodes = HashMap<String, VecConsulNode>;
 
-pub struct ConsulDiscovery{
-    rp_config: RPConfig
+pub struct ConsulDiscovery {
+    rp_config: RPConfig,
 }
 
 impl ConsulDiscovery {
-
     pub fn new(rp_config: RPConfig) -> Self {
-        ConsulDiscovery{
-            rp_config
-        }
+        ConsulDiscovery { rp_config }
     }
 
     pub async fn fetch_nodes(&self, tx: Sender<ConsulNodes>) {
@@ -38,7 +35,8 @@ impl ConsulDiscovery {
 
         loop {
             let consul_url = Arc::<str>::from(self.rp_config.consul_url.clone());
-            let service_names: Vec<String> = self.rp_config.host_to_upstream.values().cloned().collect();
+            let service_names: Vec<String> =
+                self.rp_config.host_to_upstream.values().cloned().collect();
 
             let mut join_set = JoinSet::new();
 
@@ -49,7 +47,10 @@ impl ConsulDiscovery {
                 join_set.spawn(async move {
                     let permit = semaphore.acquire_owned().await;
                     if permit.is_err() {
-                        return (service_name, Err(anyhow::anyhow!("Semaphore closed while acquiring permit")));
+                        return (
+                            service_name,
+                            Err(anyhow::anyhow!("Semaphore closed while acquiring permit")),
+                        );
                     }
                     let _permit = permit.unwrap();
 
@@ -76,10 +77,10 @@ impl ConsulDiscovery {
                     }
                     Ok((service_name, Err(err))) => {
                         log_error!(
-                        "Error happened during consul nodes serde (proceeding) for {}: {}",
-                        service_name,
-                        err
-                    );
+                            "Error happened during consul nodes serde (proceeding) for {}: {}",
+                            service_name,
+                            err
+                        );
                     }
                     Err(join_err) => {
                         log_error!("Consul discovery task failed: {}", join_err);

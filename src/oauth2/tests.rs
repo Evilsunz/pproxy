@@ -1,4 +1,3 @@
-
 use super::*;
 
 impl AuthVerifier {
@@ -24,15 +23,19 @@ impl AuthVerifier {
         let client = BasicClient::new(ClientId::new("".to_string()))
             .set_client_secret(ClientSecret::new("".to_string()))
             .set_auth_uri(AuthUrl::new("http://localhost".to_string()).expect("Invalid auth url"))
-            .set_token_uri(TokenUrl::new("http://localhost".to_string()).expect("Invalid token url"))
-            .set_redirect_uri(RedirectUrl::new("http://localhost".to_string()).expect("Invalid redirect url"));
+            .set_token_uri(
+                TokenUrl::new("http://localhost".to_string()).expect("Invalid token url"),
+            )
+            .set_redirect_uri(
+                RedirectUrl::new("http://localhost".to_string()).expect("Invalid redirect url"),
+            );
 
         Self {
             rp_config,
             decoding_key,
             encoding_key,
             validation,
-            client
+            client,
         }
     }
 }

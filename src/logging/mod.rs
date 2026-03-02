@@ -1,7 +1,7 @@
-use tracing_subscriber::{fmt, EnvFilter};
+use crate::config::RPConfig;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use crate::config::RPConfig;
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[macro_export]
 macro_rules! log_info {
@@ -31,9 +31,9 @@ macro_rules! log_trace {
     };
 }
 
-pub fn init_tracing(conf : RPConfig) -> Option<tracing_appender::non_blocking::WorkerGuard> {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(conf.log_level));
+pub fn init_tracing(conf: RPConfig) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(conf.log_level));
 
     // Dev
     #[cfg(debug_assertions)]

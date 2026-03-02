@@ -1,12 +1,16 @@
+use crate::consul::VecConsulNode;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_route53::{Client, Config};
 use aws_sdk_route53::config::Credentials;
 use aws_sdk_route53::config::http::HttpResponse;
 use aws_sdk_route53::error::SdkError;
-use aws_sdk_route53::operation::change_resource_record_sets::{ChangeResourceRecordSetsError, ChangeResourceRecordSetsOutput};
+use aws_sdk_route53::operation::change_resource_record_sets::{
+    ChangeResourceRecordSetsError, ChangeResourceRecordSetsOutput,
+};
 use aws_sdk_route53::operation::list_resource_record_sets::ListResourceRecordSetsOutput;
-use aws_sdk_route53::types::{Change, ChangeAction, ChangeBatch, ResourceRecord, ResourceRecordSet, RrType};
-use crate::consul::VecConsulNode;
+use aws_sdk_route53::types::{
+    Change, ChangeAction, ChangeBatch, ResourceRecord, ResourceRecordSet, RrType,
+};
+use aws_sdk_route53::{Client, Config};
 
 const AWS_CHECK_IP_URL: &str = "http://checkip.amazonaws.com";
 //TODO HARDCODE!!!!!
@@ -17,28 +21,47 @@ pub fn resolve_ip() -> anyhow::Result<String> {
     Ok(body.trim().to_string())
 }
 
-pub async fn get_consul_nodes(consul_url :&str, service_name: &str) -> anyhow::Result<VecConsulNode> {
-    let nodes = reqwest::get(format!("{}{}{}", consul_url,"v1/catalog/service/", service_name))
-        .await?.json::<VecConsulNode>()
-        .await?;
+pub async fn get_consul_nodes(
+    consul_url: &str,
+    service_name: &str,
+) -> anyhow::Result<VecConsulNode> {
+    let nodes = reqwest::get(format!(
+        "{}{}{}",
+        consul_url, "v1/catalog/service/", service_name
+    ))
+    .await?
+    .json::<VecConsulNode>()
+    .await?;
     if nodes.is_empty() && service_name != IGNORED_CONSUL_UI_SERVICE {
-        return Err(anyhow::anyhow!("No consul healthy service found for service {}", service_name));
+        return Err(anyhow::anyhow!(
+            "No consul healthy service found for service {}",
+            service_name
+        ));
     }
 
     Ok(nodes)
 }
 
-pub async fn get_res_record_sets(client: Client, r53_zone_id : String, fqdn : String) -> ListResourceRecordSetsOutput {
+pub async fn get_res_record_sets(
+    client: Client,
+    r53_zone_id: String,
+    fqdn: String,
+) -> ListResourceRecordSetsOutput {
     client
         .list_resource_record_sets()
         .set_hosted_zone_id(Some(r53_zone_id))
         .set_start_record_name(Some(fqdn))
         .send()
-        .await.expect("Unable to request R53 records")
+        .await
+        .expect("Unable to request R53 records")
 }
 
-pub async fn update_res_record_sets(client: Client, r53_zone_id : String, fqdn : String, new_rr : Vec<ResourceRecord>) ->Result<ChangeResourceRecordSetsOutput,
-    SdkError<ChangeResourceRecordSetsError, HttpResponse>> {
+pub async fn update_res_record_sets(
+    client: Client,
+    r53_zone_id: String,
+    fqdn: String,
+    new_rr: Vec<ResourceRecord>,
+) -> Result<ChangeResourceRecordSetsOutput, SdkError<ChangeResourceRecordSetsError, HttpResponse>> {
     let resource_record_set = ResourceRecordSet::builder()
         .name(fqdn.to_string())
         .r#type(RrType::A)
@@ -63,10 +86,14 @@ pub async fn update_res_record_sets(client: Client, r53_zone_id : String, fqdn :
         .await
 }
 
-
-
-pub fn aws_r53_client(aws_access_key : String, aws_secret_key : String) -> Client{
-    let credentials = Credentials::new(aws_access_key, aws_secret_key, None, None, "custom-provider");
+pub fn aws_r53_client(aws_access_key: String, aws_secret_key: String) -> Client {
+    let credentials = Credentials::new(
+        aws_access_key,
+        aws_secret_key,
+        None,
+        None,
+        "custom-provider",
+    );
 
     let config = Config::builder()
         .credentials_provider(credentials)

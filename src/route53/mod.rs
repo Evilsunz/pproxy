@@ -108,7 +108,7 @@ where
         fqdn.to_string(),
         new_rr,
     )
-        .await
+    .await
 }
 
 fn add_res_record(ip: &str, mut v: Vec<ResourceRecord>) -> Vec<ResourceRecord> {

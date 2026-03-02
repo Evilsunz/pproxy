@@ -4,21 +4,21 @@ mod tests;
 use crate::config::RPConfig;
 use crate::structs::{AuthClaims, AuthDecision, AuthVerifier};
 use crate::{log_error, log_trace};
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use oauth2::basic::{BasicClient};
+use oauth2::basic::BasicClient;
 use oauth2::http::Uri;
 use oauth2::url::Url;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
     TokenResponse, TokenUrl,
 };
+use pingora::ErrorType;
 use pingora::http::{ResponseHeader, StatusCode};
 use pingora::prelude::Session;
-use std::fs;
-use base64::Engine;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use pingora::ErrorType;
 use serde_json::Value;
+use std::fs;
 
 const COOKIE_NAME: &str = "rproxy_auth";
 const ISSUER: &str = "rproxy";
@@ -139,9 +139,7 @@ impl AuthVerifier {
     }
 
     async fn exchange(&self, code: &str, session: &mut Session) -> pingora::Result<bool> {
-        let http_client = reqwest::ClientBuilder::new()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
+        let http_client = oauth2::reqwest::ClientBuilder::new().redirect(oauth2::reqwest::redirect::Policy::none()).build()
             .expect("Client should build");
 
         let token = match self.client.exchange_code(AuthorizationCode::new(code.to_string())).request_async(&http_client).await {
@@ -151,11 +149,16 @@ impl AuthVerifier {
             }
         };
 
-
         let jwt = token.access_token().secret();
         let claims = self.decode_jwt_unverified(jwt).await?;
-        let name = claims.get("name").and_then(Value::as_str).unwrap_or("name_unknown");
-        let tid = claims.get("tid").and_then(Value::as_str).unwrap_or("tid_unknown");
+        let name = claims
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("name_unknown");
+        let tid = claims
+            .get("tid")
+            .and_then(Value::as_str)
+            .unwrap_or("tid_unknown");
 
         let jwt = self.encode_jwt(name, tid).unwrap();
 
@@ -163,7 +166,12 @@ impl AuthVerifier {
         let mut resp = ResponseHeader::build(StatusCode::SEE_OTHER, Some(0))?;
         let days = u64::from(self.rp_config.sso_cookie_expire_dayz);
         let max_age = SECS_PER_DAY.saturating_mul(days);
-        let cookie_value = format!("{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={age}", name = COOKIE_NAME, val = jwt, age = max_age);
+        let cookie_value = format!(
+            "{name}={val}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={age}",
+            name = COOKIE_NAME,
+            val = jwt,
+            age = max_age
+        );
         resp.insert_header("Set-Cookie", cookie_value)?;
         resp.insert_header("Location", "/")?;
         session.write_response_header(Box::new(resp), true).await?;
@@ -207,8 +215,8 @@ impl AuthVerifier {
     }
 
     fn get_redirect_url(&self) -> anyhow::Result<String> {
-
-        let (auth_url, _) = self.client
+        let (auth_url, _) = self
+            .client
             .authorize_url(CsrfToken::new_random)
             .add_scopes(
                 self.rp_config
@@ -221,13 +229,15 @@ impl AuthVerifier {
         Ok(auth_url.to_string())
     }
 
-    async fn decode_jwt_unverified(&self, jwt: &str) -> Result<(Value), pingora::Error> {
+    async fn decode_jwt_unverified(&self, jwt: &str) -> Result<Value, pingora::Error> {
         let parts: Vec<&str> = jwt.split('.').collect();
         if parts.len() != 3 {
             return Err(*pingora::Error::new(ErrorType::HTTPStatus(401)));
         }
-        let claims = URL_SAFE_NO_PAD.decode(parts[1]).map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))?;
-        serde_json::from_slice::<Value>(&claims).map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))
+        let claims = URL_SAFE_NO_PAD
+            .decode(parts[1])
+            .map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))?;
+        serde_json::from_slice::<Value>(&claims)
+            .map_err(|_| *pingora::Error::new(ErrorType::HTTPStatus(401)))
     }
-    
 }

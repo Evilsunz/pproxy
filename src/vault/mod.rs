@@ -1,30 +1,27 @@
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
+use crate::config::RPConfig;
+use crate::structs::Vault;
+use crate::{log_error, log_info};
+use anyhow::{Error, Result};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use pem::parse_many;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
-use vaultrs::kv2;
-use vaultrs_login::engines::approle::AppRoleLogin;
-use vaultrs_login::LoginClient;
-use crate::config::RPConfig;
-use anyhow::{Error, Result};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use tokio::runtime::Runtime;
 use tokio_retry::Retry;
-use crate::structs::Vault;
-use crate::{log_error, log_info};
+use tokio_retry::strategy::{ExponentialBackoff, jitter};
+use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+use vaultrs::kv2;
+use vaultrs_login::LoginClient;
+use vaultrs_login::engines::approle::AppRoleLogin;
 
 impl Vault {
-
     pub fn new(rp_config: RPConfig) -> Self {
-        Self {
-            rp_config,
-        }
+        Self { rp_config }
     }
 
-    pub fn non_async_fetch_ssl_certs(&self){
+    pub fn non_async_fetch_ssl_certs(&self) {
         log_info!("Fetching certs...");
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
@@ -39,20 +36,17 @@ impl Vault {
     }
 }
 
-async fn fetch_ssl_certs(conf : &RPConfig) -> Result<(), Error> {
-    let retry_strategy = ExponentialBackoff::from_millis(10)
-        .map(jitter)
-        .take(4);
+async fn fetch_ssl_certs(conf: &RPConfig) -> Result<(), Error> {
+    let retry_strategy = ExponentialBackoff::from_millis(10).map(jitter).take(4);
 
     Retry::spawn(retry_strategy, move || internal_fetch_ssl_certs(conf)).await
 }
 
 async fn internal_fetch_ssl_certs(conf: &RPConfig) -> Result<(), Error> {
-
     let mut client = VaultClient::new(
         VaultClientSettingsBuilder::default()
             .address(conf.vault_address.clone())
-            .build()?
+            .build()?,
     )?;
 
     let role_id = conf.role_id.clone();
@@ -61,7 +55,8 @@ async fn internal_fetch_ssl_certs(conf: &RPConfig) -> Result<(), Error> {
 
     client.login("approle", &login).await?;
 
-    let full_cert : HashMap<String,String>= kv2::read(&client, "kv2", &conf.path_to_cert_secret.clone()).await?;
+    let full_cert: HashMap<String, String> =
+        kv2::read(&client, "kv2", &conf.path_to_cert_secret.clone()).await?;
 
     let vec = BASE64_STANDARD.decode(full_cert.get("data").unwrap())?;
     let pem = parse_many(vec)?;
