@@ -61,12 +61,18 @@ impl AuthVerifier {
                 RedirectUrl::new(rp_config.redirect_url.clone()).expect("Invalid redirect url"),
             );
 
+        let http_client = oauth2::reqwest::ClientBuilder::new()
+            .redirect(oauth2::reqwest::redirect::Policy::none())
+            .build()
+            .expect("Client should build");
+        
         Self {
             rp_config,
             decoding_key,
             encoding_key,
             validation,
             client,
+            http_client,
         }
     }
 
@@ -139,10 +145,7 @@ impl AuthVerifier {
     }
 
     async fn exchange(&self, code: &str, session: &mut Session) -> pingora::Result<bool> {
-        let http_client = oauth2::reqwest::ClientBuilder::new().redirect(oauth2::reqwest::redirect::Policy::none()).build()
-            .expect("Client should build");
-
-        let token = match self.client.exchange_code(AuthorizationCode::new(code.to_string())).request_async(&http_client).await {
+        let token = match self.client.exchange_code(AuthorizationCode::new(code.to_string())).request_async(&self.http_client).await {
             Ok(t) => {t}
             Err(_) => {
                 return Err(pingora::Error::new(ErrorType::HTTPStatus(401)))

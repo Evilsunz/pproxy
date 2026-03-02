@@ -56,6 +56,7 @@ pub struct Web {
 pub struct LeaderRoutine {
     pub rp_config: RPConfig,
     pub session_id: Arc<Mutex<String>>,
+    pub http_client: reqwest::Client,
 }
 
 #[derive(Clone)]
@@ -76,6 +77,7 @@ pub struct AuthVerifier {
         EndpointNotSet,
         EndpointSet,
     >,
+    pub http_client: oauth2::reqwest::Client,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

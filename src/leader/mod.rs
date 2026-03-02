@@ -45,6 +45,7 @@ impl LeaderRoutine {
         Self {
             rp_config,
             session_id: Arc::new(Mutex::new(String::new())),
+            http_client: reqwest::Client::new(),
         }
     }
 
@@ -117,7 +118,7 @@ impl LeaderRoutine {
         let mut payload = HashMap::new();
         payload.insert("Name", "rproxy");
         payload.insert("TTL", "1000s");
-        let client = reqwest::Client::new();
+        let client = self.http_client.clone();
         let response = client
             .put(format!(
                 "{}{}",
@@ -132,7 +133,7 @@ impl LeaderRoutine {
     }
 
     async fn renew_consul_session(&self, id: &str) -> anyhow::Result<HashMap<String, Value>> {
-        let client = reqwest::Client::new();
+        let client = self.http_client.clone();
         let response = client
             .put(format!(
                 "{}{}{}",
@@ -149,7 +150,7 @@ impl LeaderRoutine {
         let mut payload = HashMap::new();
         payload.insert("Node", "rproxy");
         payload.insert("Ip", ip);
-        let client = reqwest::Client::new();
+        let client = self.http_client.clone();
         let response = client
             .put(format!(
                 "{}{}{}",
@@ -167,7 +168,7 @@ impl LeaderRoutine {
         let mut payload = HashMap::new();
         payload.insert("Node", "rproxy");
         payload.insert("Ip", "0.0.0.0");
-        let client = reqwest::Client::new();
+        let client = self.http_client.clone();
         let response = client
             .put(format!(
                 "{}{}{}",

@@ -30,12 +30,18 @@ impl AuthVerifier {
                 RedirectUrl::new("http://localhost".to_string()).expect("Invalid redirect url"),
             );
 
+        let http_client = oauth2::reqwest::ClientBuilder::new()
+            .redirect(oauth2::reqwest::redirect::Policy::none())
+            .build()
+            .expect("Client should build");
+
         Self {
             rp_config,
             decoding_key,
             encoding_key,
             validation,
             client,
+            http_client,
         }
     }
 }
