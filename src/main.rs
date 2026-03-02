@@ -16,6 +16,9 @@ use crate::structs::{LeaderRoutine, NetIqLoadBalancer, R53, Vault, Web};
 use pingora::prelude::*;
 use std::path::PathBuf;
 
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 fn main() {
     let args = parse();
     let conf = match config::load(PathBuf::from(args.config_path)) {
