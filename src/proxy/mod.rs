@@ -42,6 +42,12 @@ impl ProxyHttp for NetIqLoadBalancer {
 
         log_trace!("request summary {}", session.request_summary());
         let upstream = self.resolve_upstream(&hostname);
+        if let None = upstream {
+            let _ = session
+                .respond_error_with_body(404, bytes::Bytes::from("Not found\n"))
+                .await;
+            return Ok(true);
+        }
         ctx.hostname = Some(hostname.to_string());
         ctx.fully_qualified_upstream = upstream;
 
