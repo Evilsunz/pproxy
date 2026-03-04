@@ -7,20 +7,64 @@ use oauth2::basic::{
 use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
 use pingora::lb::LoadBalancer;
 use pingora::prelude::RoundRobin;
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::{Serialize};
 use std::sync::{Arc, Mutex};
+use serde::Deserialize;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
 
-#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Debug, Clone, Eq, PartialEq)]
 pub struct ConsulNode {
     #[serde(rename = "Node")]
-    pub node: String,
+    pub service_name: String,
     #[serde(rename = "Address")]
     pub address: String,
     #[serde(rename = "ServicePort")]
     pub service_port: u64,
+}
+
+impl<'de> Deserialize<'de> for ConsulNode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = ConsulEntryRaw::deserialize(deserializer)?;
+        let address = if raw.service.address.is_empty() {
+            raw.node.address
+        } else {
+            raw.service.address
+        };
+        Ok(Self {
+            service_name: raw.service.name,
+            address,
+            service_port: raw.service.port as u64,
+        })
+    }
+}
+
+#[derive(Deserialize)]
+struct ConsulEntryRaw {
+    #[serde(rename = "Node")]
+    node: ConsulNodeRaw,
+    #[serde(rename = "Service")]
+    service: ConsulServiceRaw,
+}
+
+#[derive(Deserialize)]
+struct ConsulNodeRaw {
+    #[serde(rename = "Address")]
+    address: String,
+}
+
+#[derive(Deserialize)]
+struct ConsulServiceRaw {
+    #[serde(rename = "Service")]
+    name: String,
+    #[serde(rename = "Address")]
+    address: String,
+    #[serde(rename = "Port")]
+    port: u16,
 }
 
 pub struct Context {

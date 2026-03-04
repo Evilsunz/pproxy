@@ -26,15 +26,16 @@ pub async fn get_consul_nodes(
     service_name: &str,
 ) -> anyhow::Result<VecConsulNode> {
     let nodes = reqwest::get(format!(
-        "{}{}{}",
-        consul_url, "v1/catalog/service/", service_name
+        "{}{}{}{}",
+        consul_url, "v1/health/service/", service_name, "?passing=true"
     ))
-    .await?
-    .json::<VecConsulNode>()
-    .await?;
+        .await?
+        .json::<VecConsulNode>()
+        .await?;
+
     if nodes.is_empty() && service_name != IGNORED_CONSUL_UI_SERVICE {
         return Err(anyhow::anyhow!(
-            "No consul healthy service found for service {}",
+            "No consul healthy nodes found for service {}",
             service_name
         ));
     }
