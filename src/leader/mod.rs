@@ -92,7 +92,7 @@ impl LeaderRoutine {
                         let rez = compare_res_record(rproxy_ips.clone(), existing_rr.clone());
                         if !rez {
                             log_warn!(
-                                "Found difference in r53 for fqdn {} : {:?} and pproxies ips {:?} .Resetting to pproxies_ips",
+                                "Found difference in r53 for fqdn {} : {:?} and rproxies ips {:?} .Resetting to rproxies_ips",
                                 fqdn,
                                 existing_rr,
                                 rproxy_ips
@@ -184,12 +184,12 @@ impl LeaderRoutine {
 }
 
 fn compare_res_record(x: Vec<ResourceRecord>, v: Vec<ResourceRecord>) -> bool {
-    let mut pproxies: Vec<String> = x.into_iter().map(|rr| rr.value.clone()).collect();
+    let mut rproxies: Vec<String> = x.into_iter().map(|rr| rr.value.clone()).collect();
 
     let mut record_set: Vec<String> = v.into_iter().map(|rr| rr.value.clone()).collect();
 
-    pproxies.sort();
+    rproxies.sort();
     record_set.sort();
 
-    pproxies == record_set
+    rproxies == record_set
 }

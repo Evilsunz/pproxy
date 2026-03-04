@@ -2,6 +2,60 @@ use crate::config::RPConfig;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
+use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::registry::LookupSpan;
+
+struct NiceFormat;
+
+impl<S, N> FormatEvent<S, N> for NiceFormat
+where
+    S: tracing::Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
+{
+    fn format_event(
+        &self,
+        ctx: &FmtContext<'_, S, N>,
+        mut w: Writer<'_>,
+        event: &tracing::Event<'_>,
+    ) -> std::fmt::Result {
+        let meta = event.metadata();
+
+        let (sigil, rite) = match *meta.level() {
+            tracing::Level::ERROR => ("☠", "RITE:ABORT"),
+            tracing::Level::WARN => ("⚠", "RITE:CAUTION"),
+            tracing::Level::INFO => ("⚙", "RITE:STATUS"),
+            tracing::Level::DEBUG => ("⛭", "RITE:DIAGNOSTIC"),
+            tracing::Level::TRACE => ("⌁", "RITE:TELEMETRY"),
+        };
+
+        write!(
+            w,
+            "⟦⚙ NOOSPHERE·DATALOG ⟧ {} ⟦{}⟧ ⟦FORGE:{}⟧ ",
+            sigil,
+            rite,
+            meta.target()
+        )?;
+
+        if let Some(scope) = ctx.event_scope() {
+            write!(w, "⟦SUBROUTINE:")?;
+            let mut first = true;
+            for span in scope.from_root() {
+                if !first {
+                    write!(w, "→")?;
+                }
+                first = false;
+                write!(w, "{}", span.name())?;
+            }
+            write!(w, "⟧ ")?;
+        }
+
+        write!(w, "⟦DATA⟧ ")?;
+        ctx.field_format().format_fields(w.by_ref(), event)?;
+
+        writeln!(w)
+    }
+}
 
 #[macro_export]
 macro_rules! log_info {
