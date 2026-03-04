@@ -6,28 +6,28 @@ use tracing_subscriber::{EnvFilter, fmt};
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        tracing::info!(target: "rproxy", $($arg)*)
+        tracing::info!(target: "rproxy", "++++++++++++ {}", format_args!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
-        tracing::error!(target: "rproxy", $($arg)*)
+        tracing::error!(target: "rproxy", "++++++++++++ {}", format_args!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        tracing::warn!(target: "rproxy", $($arg)*)
+        tracing::warn!(target: "rproxy", "++++++++++++ {}", format_args!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! log_trace {
     ($($arg:tt)*) => {
-        tracing::trace!(target: "rproxy", $($arg)*)
+        tracing::trace!(target: "rproxy", "++++++++++++ {}", format_args!($($arg)*))
     };
 }
 
