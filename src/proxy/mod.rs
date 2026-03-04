@@ -129,7 +129,7 @@ impl BackgroundService for NetIqLoadBalancer {
             tokio::select! {
                 val = rx.recv() => {
                     if let Some(new_node) = val {
-                            log_info!(" ++++++++++++ New nodes: {new_node:?}");
+                            log_info!("New nodes: {new_node:?}");
                             self.repopulate_nodes(&new_node);
                             self.repopulate_balancers(&new_node)
                     }
