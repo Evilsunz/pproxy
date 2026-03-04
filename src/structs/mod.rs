@@ -21,7 +21,7 @@ pub struct ConsulNode {
     #[serde(rename = "Address")]
     pub address: String,
     #[serde(rename = "ServicePort")]
-    pub service_port: u64,
+    pub service_port: u16,
 }
 
 impl<'de> Deserialize<'de> for ConsulNode {
@@ -38,7 +38,7 @@ impl<'de> Deserialize<'de> for ConsulNode {
         Ok(Self {
             service_name: raw.service.name,
             address,
-            service_port: raw.service.port as u64,
+            service_port: raw.service.port,
         })
     }
 }
