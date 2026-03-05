@@ -1,6 +1,6 @@
 use crate::config::RPConfig;
 use crate::log_info;
-use crate::structs::{ConsulNode, Web};
+use crate::structs::{ConsulNode, RuntimeState, Web};
 use async_trait::async_trait;
 use axum::response::Redirect;
 use axum::routing::get;
@@ -10,6 +10,7 @@ use pingora_core::server::ShutdownWatch;
 use pingora_core::services::background::BackgroundService;
 use serde_json::{Value, json};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 #[async_trait]
 impl BackgroundService for Web {
@@ -28,8 +29,8 @@ impl BackgroundService for Web {
 }
 
 impl Web {
-    pub fn new(rp_config: RPConfig, nodes: Arc<DashMap<String, Vec<ConsulNode>>>) -> Self {
-        Self { rp_config, nodes }
+    pub fn new(rp_config: RPConfig, nodes: Arc<DashMap<String, Vec<ConsulNode>>>, runtime_state: RuntimeState) -> Self {
+        Self { rp_config, nodes , runtime_state }
     }
 
     pub async fn bind_http(&self) {
@@ -70,7 +71,7 @@ impl Web {
 
         Json(json!({
             "status": "OK",
-            "leader": self.rp_config.is_leader.unwrap_or(false),
+            "leader": self.runtime_state.is_leader.load(Ordering::Relaxed),
             "nodes" : nodes
         }))
     }

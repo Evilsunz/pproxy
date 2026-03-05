@@ -8,7 +8,9 @@ use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
 use pingora::lb::LoadBalancer;
 use pingora::prelude::RoundRobin;
 use serde_derive::{Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::atomic::AtomicBool;
+use aws_sdk_route53::Client;
 use serde::Deserialize;
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
@@ -83,6 +85,7 @@ pub struct NetIqLoadBalancer {
 #[derive(Clone)]
 pub struct R53 {
     pub rp_config: RPConfig,
+    pub runtime_state: RuntimeState,
 }
 
 #[derive(Clone)]
@@ -94,6 +97,7 @@ pub struct Vault {
 pub struct Web {
     pub rp_config: RPConfig,
     pub nodes: Arc<DashMap<String, Vec<ConsulNode>>>,
+    pub runtime_state: RuntimeState,
 }
 
 #[derive(Clone)]
@@ -101,6 +105,7 @@ pub struct LeaderRoutine {
     pub rp_config: RPConfig,
     pub session_id: Arc<Mutex<String>>,
     pub http_client: reqwest::Client,
+    pub runtime_state: RuntimeState,
 }
 
 #[derive(Clone)]
@@ -139,4 +144,21 @@ pub enum AuthDecision {
     Exchange { code: String },
     RedirectToSso,
     Proceed,
+}
+
+#[derive(Clone)]
+pub struct RuntimeState {
+    pub is_leader: Arc<AtomicBool>,
+    pub ip: Arc<Mutex<String>>,
+    pub aws_r53_client: Arc<OnceLock<Client>>,
+}
+
+impl RuntimeState {
+    pub fn new() -> Self {
+        Self {
+            is_leader: Arc::new(AtomicBool::new(false)),
+            ip: Arc::new(Mutex::new(String::new())),
+            aws_r53_client: Arc::new(OnceLock::new()),
+        }
+    }
 }

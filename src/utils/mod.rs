@@ -44,7 +44,7 @@ pub async fn get_consul_nodes(
 }
 
 pub async fn get_res_record_sets(
-    client: Client,
+    client: &Client,
     r53_zone_id: String,
     fqdn: String,
 ) -> ListResourceRecordSetsOutput {
@@ -58,7 +58,7 @@ pub async fn get_res_record_sets(
 }
 
 pub async fn update_res_record_sets(
-    client: Client,
+    client: &Client,
     r53_zone_id: String,
     fqdn: String,
     new_rr: Vec<ResourceRecord>,

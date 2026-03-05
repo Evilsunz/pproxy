@@ -12,9 +12,10 @@ mod web;
 
 use crate::config::parse;
 use crate::logging::init_tracing;
-use crate::structs::{LeaderRoutine, NetIqLoadBalancer, R53, Vault, Web};
+use crate::structs::{LeaderRoutine, NetIqLoadBalancer, R53, Vault, Web, RuntimeState};
 use pingora::prelude::*;
 use std::path::PathBuf;
+use crate::utils::{aws_r53_client, resolve_ip};
 
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
@@ -33,12 +34,22 @@ fn main() {
     let _guard = init_tracing(conf.clone());
 
     tracing::info!(target: "rproxy", "server starting");
+    //+++ Runtime init +++ Move it ?
+    let runtime_state = RuntimeState::new();
+    let ip = resolve_ip().unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
+    *runtime_state.ip.lock().unwrap() = ip;
+    let aws_r53_client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
+    runtime_state
+        .aws_r53_client
+        .set(aws_r53_client)
+        .expect("aws_r53_client already initialized");
+    //+++ Runtime init +++ Move it ? END
 
     let lb = NetIqLoadBalancer::new(conf.clone());
-    let r53 = R53::new(conf.clone());
+    let r53 = R53::new(conf.clone() , runtime_state.clone());
     let vault = Vault::new(conf.clone());
-    let leader = LeaderRoutine::new(conf.clone());
-    let web = Web::new(conf.clone(), lb.nodes.clone());
+    let leader = LeaderRoutine::new(conf.clone(), runtime_state.clone());
+    let web = Web::new(conf.clone(), lb.nodes.clone(), runtime_state.clone());
 
     r53.non_async_r53_register();
 

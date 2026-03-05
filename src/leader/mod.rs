@@ -2,7 +2,7 @@
 mod tests;
 
 use crate::config::RPConfig;
-use crate::structs::LeaderRoutine;
+use crate::structs::{LeaderRoutine, RuntimeState};
 use crate::utils::{get_consul_nodes, get_res_record_sets, update_res_record_sets};
 use crate::{log_info, log_warn};
 use async_trait::async_trait;
@@ -13,6 +13,7 @@ use pingora_core::services::background::BackgroundService;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 const CONSUL_CREATE_SESSION: &str = "v1/session/create";
@@ -41,19 +42,23 @@ impl BackgroundService for LeaderRoutine {
 }
 
 impl LeaderRoutine {
-    pub fn new(rp_config: RPConfig) -> Self {
+    pub fn new(rp_config: RPConfig, runtime_state: RuntimeState) -> Self {
         Self {
             rp_config,
             session_id: Arc::new(Mutex::new(String::new())),
             http_client: reqwest::Client::new(),
+            runtime_state,
         }
     }
 
     pub async fn routine(&mut self) {
         log_info!("Starting Leader routine...");
         let session_id = self.session_id.lock().unwrap().clone();
-        let ip = self.rp_config.ip.clone().unwrap();
-        let client = self.rp_config.aws_r53_client.clone().unwrap();
+        let ip = self.runtime_state.ip.lock().unwrap().clone();
+        let client = self
+            .runtime_state
+            .aws_r53_client
+            .get().expect("aws_r53_client not initialized");
         loop {
             let leader = self
                 .acquire_consul_lock(&session_id, ip.as_str())
@@ -62,7 +67,7 @@ impl LeaderRoutine {
             log_info!("Session id :{} + Leader : {}...", session_id, leader);
             //todo set leader to rp_config
             if leader {
-                self.rp_config.is_leader = Some(true);
+                self.runtime_state.is_leader.store(leader, Ordering::Relaxed);
                 if let Ok(rproxies) =
                     get_consul_nodes(self.rp_config.consul_url.as_str(), "rproxy").await
                 {
@@ -77,7 +82,7 @@ impl LeaderRoutine {
                         .collect();
                     for fqdn in &self.rp_config.fqdns {
                         let response = get_res_record_sets(
-                            client.clone(),
+                            client,
                             self.rp_config.r53_zone_id.clone(),
                             fqdn.clone(),
                         )
@@ -98,7 +103,7 @@ impl LeaderRoutine {
                                 rproxy_ips
                             );
                             let _ = update_res_record_sets(
-                                client.clone(),
+                                client,
                                 self.rp_config.r53_zone_id.clone(),
                                 fqdn.to_string(),
                                 rproxy_ips.clone(),

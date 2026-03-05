@@ -1,5 +1,3 @@
-use crate::utils::{aws_r53_client, resolve_ip};
-use aws_sdk_route53::Client;
 use clap::Parser;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -22,14 +20,10 @@ pub fn parse() -> Args {
 }
 
 pub fn load(path: PathBuf) -> Result<RPConfig, Error> {
-    let mut conf = RPConfig::with_layers(&[
+    let conf = RPConfig::with_layers(&[
         Layer::Toml(path),
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
-    let ip = resolve_ip().unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
-    let aws_r53_client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
-    conf.ip = Some(ip);
-    conf.aws_r53_client = Some(aws_r53_client);
     Ok(conf)
 }
 
@@ -76,11 +70,4 @@ pub struct RPConfig {
 
     pub host_to_upstream: HashMap<String, String>,
     pub fqdns: Vec<String>,
-
-    #[serde(skip, default)]
-    pub ip: Option<String>,
-    #[serde(skip, default)]
-    pub aws_r53_client: Option<Client>,
-    #[serde(skip, default)]
-    pub is_leader: Option<bool>,
 }

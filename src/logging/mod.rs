@@ -93,9 +93,7 @@ pub fn init_tracing(conf: RPConfig) -> Option<tracing_appender::non_blocking::Wo
     #[cfg(debug_assertions)]
     {
         let stdout_layer = fmt::layer()
-            .with_target(true)
-            .with_thread_ids(true)
-            .with_thread_names(true);
+            .event_format(NiceFormat);
 
         tracing_subscriber::registry()
             .with(filter)
