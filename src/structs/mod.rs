@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::atomic::AtomicBool;
 use aws_sdk_route53::Client;
 use serde::Deserialize;
+use crate::utils::{aws_r53_client, resolve_ip};
 
 pub type ConsulNodes = DashMap<String, Vec<ConsulNode>>;
 pub type LoadBalancers = DashMap<String, LoadBalancer<RoundRobin>>;
@@ -154,11 +155,22 @@ pub struct RuntimeState {
 }
 
 impl RuntimeState {
-    pub fn new() -> Self {
-        Self {
+
+    pub fn try_new(conf: &RPConfig) -> anyhow::Result<Self> {
+        let ip = resolve_ip()
+            .map_err(|e| anyhow::anyhow!("unable to resolve own IP: {}", e))?;
+
+        let client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
+        let aws_r53_client = Arc::new(OnceLock::new());
+        aws_r53_client
+            .set(client)
+            .map_err(|_| anyhow::anyhow!("aws_r53_client already initialized"))?;
+
+        Ok(Self {
             is_leader: Arc::new(AtomicBool::new(false)),
-            ip: Arc::new(Mutex::new(String::new())),
-            aws_r53_client: Arc::new(OnceLock::new()),
-        }
+            ip: Arc::new(Mutex::new(ip)),
+            aws_r53_client,
+        })
     }
+
 }

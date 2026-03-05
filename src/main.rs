@@ -28,23 +28,11 @@ fn main() {
             panic!("Unable to load config : {}", e)
         }
     };
-
-    //init_log(conf.clone());
-
+    let runtime_state = RuntimeState::try_new(&conf).unwrap();
+    
     let _guard = init_tracing(conf.clone());
-
-    tracing::info!(target: "rproxy", "server starting");
-    //+++ Runtime init +++ Move it ?
-    let runtime_state = RuntimeState::new();
-    let ip = resolve_ip().unwrap_or_else(|_| panic!("Unable to resolve own IP - shutting down..."));
-    *runtime_state.ip.lock().unwrap() = ip;
-    let aws_r53_client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
-    runtime_state
-        .aws_r53_client
-        .set(aws_r53_client)
-        .expect("aws_r53_client already initialized");
-    //+++ Runtime init +++ Move it ? END
-
+    log_info!("server starting");
+    
     let lb = NetIqLoadBalancer::new(conf.clone());
     let r53 = R53::new(conf.clone() , runtime_state.clone());
     let vault = Vault::new(conf.clone());
