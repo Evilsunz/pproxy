@@ -55,10 +55,9 @@ impl LeaderRoutine {
         log_info!("Starting Leader routine...");
         let session_id = self.session_id.lock().unwrap().clone();
         let ip = self.runtime_state.ip.lock().unwrap().clone();
-        let client = self
+        let client = &self
             .runtime_state
-            .aws_r53_client
-            .get().expect("aws_r53_client not initialized");
+            .aws_r53_client;
         loop {
             let leader = self
                 .acquire_consul_lock(&session_id, ip.as_str())
@@ -82,7 +81,7 @@ impl LeaderRoutine {
                         .collect();
                     for fqdn in &self.rp_config.fqdns {
                         let response = get_res_record_sets(
-                            client,
+                            client.as_ref(),
                             self.rp_config.r53_zone_id.clone(),
                             fqdn.clone(),
                         )
@@ -103,7 +102,7 @@ impl LeaderRoutine {
                                 rproxy_ips
                             );
                             let _ = update_res_record_sets(
-                                client,
+                                client.as_ref(),
                                 self.rp_config.r53_zone_id.clone(),
                                 fqdn.to_string(),
                                 rproxy_ips.clone(),

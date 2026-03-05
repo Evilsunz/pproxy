@@ -15,7 +15,6 @@ use crate::logging::init_tracing;
 use crate::structs::{LeaderRoutine, NetIqLoadBalancer, R53, Vault, Web, RuntimeState};
 use pingora::prelude::*;
 use std::path::PathBuf;
-use crate::utils::{aws_r53_client, resolve_ip};
 
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;

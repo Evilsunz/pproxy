@@ -8,7 +8,7 @@ use oauth2::{EndpointNotSet, EndpointSet, StandardRevocableToken};
 use pingora::lb::LoadBalancer;
 use pingora::prelude::RoundRobin;
 use serde_derive::{Serialize};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use aws_sdk_route53::Client;
 use serde::Deserialize;
@@ -151,7 +151,7 @@ pub enum AuthDecision {
 pub struct RuntimeState {
     pub is_leader: Arc<AtomicBool>,
     pub ip: Arc<Mutex<String>>,
-    pub aws_r53_client: Arc<OnceLock<Client>>,
+    pub aws_r53_client: Arc<Client>,
 }
 
 impl RuntimeState {
@@ -161,15 +161,11 @@ impl RuntimeState {
             .map_err(|e| anyhow::anyhow!("unable to resolve own IP: {}", e))?;
 
         let client = aws_r53_client(conf.aws_access_key.clone(), conf.aws_secret_key.clone());
-        let aws_r53_client = Arc::new(OnceLock::new());
-        aws_r53_client
-            .set(client)
-            .map_err(|_| anyhow::anyhow!("aws_r53_client already initialized"))?;
 
         Ok(Self {
             is_leader: Arc::new(AtomicBool::new(false)),
             ip: Arc::new(Mutex::new(ip)),
-            aws_r53_client,
+            aws_r53_client: Arc::new(client),
         })
     }
 

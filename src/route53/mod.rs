@@ -28,12 +28,10 @@ impl R53 {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             let ip = self.runtime_state.ip.lock().unwrap().clone();
-            let aws_r53_client = self
+            let aws_r53_client = &self
                 .runtime_state
-                .aws_r53_client
-                .get()
-                .expect("aws_r53_client not initialized");
-            match register_ip_route53(&self.rp_config, &ip, aws_r53_client).await {
+                .aws_r53_client;
+            match register_ip_route53(&self.rp_config, &ip, aws_r53_client.as_ref()).await {
                 Ok(_) => {}
                 Err(err) => {
                     log_error!("{:?}", err);
@@ -52,12 +50,10 @@ impl BackgroundService for R53 {
                 _ = shutdown.changed() => {
                     log_info!("Shutting down (dereg r53)...");
                     let ip = self.runtime_state.ip.lock().unwrap().clone();
-                    let aws_r53_client = self
+                    let aws_r53_client = &self
                         .runtime_state
-                        .aws_r53_client
-                        .get()
-                        .expect("aws_r53_client not initialized");
-                    match deregister_ip_route53(&self.rp_config, &ip, aws_r53_client).await {
+                        .aws_r53_client;
+                    match deregister_ip_route53(&self.rp_config, &ip, aws_r53_client.as_ref()).await {
                         Ok(_) => {}
                         Err(err) => {
                             log_error!("{:?}", err);
