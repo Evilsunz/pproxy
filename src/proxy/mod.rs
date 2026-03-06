@@ -1,4 +1,4 @@
-use crate::config::RPConfig;
+use crate::config::{RPConfig, UpstreamDetails};
 use crate::consul::ConsulDiscovery;
 use crate::structs::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};
 use crate::{log_error, log_info, log_trace};
@@ -41,18 +41,20 @@ impl ProxyHttp for NetIqLoadBalancer {
         })?;
 
         log_trace!("request summary {}", session.request_summary());
-        let upstream = self.resolve_upstream(&hostname);
-        if let None = upstream {
-            let _ = session
-                .respond_error_with_body(404, bytes::Bytes::from("Not found\n"))
-                .await;
-            return Ok(true);
-        }
+        let upstream = match self.resolve_upstream(&hostname) {
+            Some(u) => {u}
+            None => {
+                    let _ = session
+                        .respond_error_with_body(404, bytes::Bytes::from("Not found\n"))
+                        .await;
+                    return Ok(true)
+            }
+        };
         ctx.hostname = Some(hostname.to_string());
-        ctx.fully_qualified_upstream = upstream;
+        ctx.fully_qualified_upstream = Some(upstream.upstream);
 
         //OAUTH2 challenge
-        if  self.rp_config.hosts_under_sso.contains(&hostname){
+        if  upstream.sso_req {
             return self.auth_verifier.verify_auth_cookie(session).await;
         };
 
@@ -193,7 +195,7 @@ impl NetIqLoadBalancer {
             .or_else(|| session.req_header().uri.host().map(|s| s.to_string()))
     }
 
-    fn resolve_upstream(&self, hostname: &str) -> Option<String> {
+    fn resolve_upstream(&self, hostname: &str) -> Option<UpstreamDetails> {
         self.rp_config
             .host_to_upstream
             .iter()

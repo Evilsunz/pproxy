@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use serde_derive::{Deserialize, Serialize};
 use twelf::{Error, Layer, config};
 
 #[derive(Parser, Debug)]
@@ -25,6 +26,20 @@ pub fn load(path: PathBuf) -> Result<RPConfig, Error> {
         //Layer::Env(Some(String::from("APP_"))),
     ])?;
     Ok(conf)
+}
+
+#[derive(Debug, Clone, Deserialize,Serialize)]
+pub struct UpstreamDetails {
+    pub upstream: String,
+
+    #[serde(default)]
+    pub sso_req: bool,
+
+    #[serde(default)]
+    pub redirect_url: String,
+
+    #[serde(default = "default_health_checks")]
+    pub health_checks : String,
 }
 
 #[config]
@@ -55,7 +70,6 @@ pub struct RPConfig {
     
     pub jwt_cert: String,
     pub jwt_private_cert: String,
-    pub hosts_under_sso: Vec<String>,
     pub client_id: String,
     pub client_secret: String,
     pub auth_url: String,
@@ -68,6 +82,10 @@ pub struct RPConfig {
     pub aws_secret_key: String,
     pub r53_zone_id: String,
 
-    pub host_to_upstream: HashMap<String, String>,
+    pub host_to_upstream: HashMap<String, UpstreamDetails>,
     pub fqdns: Vec<String>,
+}
+
+fn default_health_checks() -> String {
+    "passing".to_string()
 }

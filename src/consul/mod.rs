@@ -1,4 +1,4 @@
-use crate::config::RPConfig;
+use crate::config::{RPConfig, UpstreamDetails};
 use crate::utils::get_consul_nodes;
 use crate::{log_error, log_info};
 use dashmap::DashMap;
@@ -35,15 +35,17 @@ impl ConsulDiscovery {
 
         loop {
             let consul_url = Arc::<str>::from(self.rp_config.consul_url.clone());
-            let service_names: Vec<String> =
+            let upsteams: Vec<UpstreamDetails> =
                 self.rp_config.host_to_upstream.values().cloned().collect();
 
             let mut join_set = JoinSet::new();
 
-            for service_name in service_names {
+            for upstream in upsteams {
                 let consul_url = Arc::clone(&consul_url);
                 let semaphore = Arc::clone(&semaphore);
-
+                let service_name = upstream.upstream.clone();
+                let health_checks = upstream.health_checks.clone();
+                
                 join_set.spawn(async move {
                     let permit = semaphore.acquire_owned().await;
                     if permit.is_err() {
@@ -54,7 +56,9 @@ impl ConsulDiscovery {
                     }
                     let _permit = permit.unwrap();
 
-                    let res = get_consul_nodes(consul_url.as_ref(), service_name.as_str()).await;
+                    let res = get_consul_nodes(consul_url.as_ref(),
+                                               service_name.as_str(),
+                                               health_checks.as_str()).await;
                     (service_name, res)
                 });
             }

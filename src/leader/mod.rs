@@ -68,7 +68,7 @@ impl LeaderRoutine {
             if leader {
                 self.runtime_state.is_leader.store(leader, Ordering::Relaxed);
                 if let Ok(rproxies) =
-                    get_consul_nodes(self.rp_config.consul_url.as_str(), "rproxy").await
+                    get_consul_nodes(self.rp_config.consul_url.as_str(), "rproxy", "passing").await
                 {
                     let rproxy_ips: Vec<ResourceRecord> = rproxies
                         .iter()

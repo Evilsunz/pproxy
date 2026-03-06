@@ -24,10 +24,11 @@ pub fn resolve_ip() -> anyhow::Result<String> {
 pub async fn get_consul_nodes(
     consul_url: &str,
     service_name: &str,
+    health_checks: &str,
 ) -> anyhow::Result<VecConsulNode> {
     let nodes = reqwest::get(format!(
-        "{}{}{}{}",
-        consul_url, "v1/health/service/", service_name, "?passing=true"
+        "{}v1/health/service/{}?{}=true",
+        consul_url, service_name, health_checks
     ))
         .await?
         .json::<VecConsulNode>()
