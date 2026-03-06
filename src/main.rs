@@ -27,7 +27,10 @@ fn main() {
             panic!("Unable to load config : {}", e)
         }
     };
-    let runtime_state = RuntimeState::try_new(&conf).unwrap();
+    let runtime_state = match RuntimeState::try_new(&conf) {
+        Ok(x) => x,
+        Err(e) => panic!("Unable to construct runtime state : {}", e),
+    };
     
     let _guard = init_tracing(conf.clone());
     log_info!("server starting");

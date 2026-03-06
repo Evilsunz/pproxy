@@ -57,9 +57,7 @@ impl AuthVerifier {
             .set_client_secret(ClientSecret::new(rp_config.client_secret.clone()))
             .set_auth_uri(AuthUrl::new(rp_config.auth_url.clone()).expect("Invalid auth url"))
             .set_token_uri(TokenUrl::new(rp_config.token_url.clone()).expect("Invalid token url"));
-            // .set_redirect_uri(
-            //     RedirectUrl::new(rp_config.redirect_url.clone()).expect("Invalid redirect url"),
-            // );
+            //redirect_url set for each upstream individually
 
         let http_client = oauth2::reqwest::ClientBuilder::new()
             .redirect(oauth2::reqwest::redirect::Policy::none())
