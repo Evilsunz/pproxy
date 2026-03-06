@@ -40,6 +40,13 @@ pub struct UpstreamDetails {
 
     #[serde(default = "default_health_checks")]
     pub health_checks : String,
+
+    #[serde(default)]
+    pub is_upstream_static: bool,
+
+    //Todo make it Vec
+    #[serde(default)]
+    pub upstream_static_host_port: String,
 }
 
 #[config]
@@ -55,8 +62,6 @@ pub struct RPConfig {
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub log_path: String,
     pub log_level: String,
-
-    pub static_consul_agent_ip_port: String,
 
     pub vault_address: String,
     pub role_id: String,

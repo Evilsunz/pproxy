@@ -148,15 +148,10 @@ impl BackgroundService for NetIqLoadBalancer {
 
 impl NetIqLoadBalancer {
     pub fn new(rp_config: RPConfig) -> Self {
-        //TODO workaround static consul-ui
-        let static_consul_ui_ips = vec![rp_config.static_consul_agent_ip_port.clone()];
-        let balancer = LoadBalancer::<RoundRobin>::try_from_iter(static_consul_ui_ips).unwrap();
-        let balancers = Arc::new(LoadBalancers::new());
-        balancers.insert("consul-ui".to_string(), balancer);
         let auth_verifier = AuthVerifier::new(rp_config.clone());
         Self {
-            nodes: Arc::new(DashMap::new()),
-            balancers,
+            nodes: Arc::new(ConsulNodes::new()),
+            balancers: Arc::new(LoadBalancers::new()),
             auth_verifier,
             rp_config,
         }

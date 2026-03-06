@@ -43,11 +43,12 @@ impl ConsulDiscovery {
             for upstream in upsteams {
                 let consul_url = Arc::clone(&consul_url);
                 let semaphore = Arc::clone(&semaphore);
-                let service_name = upstream.upstream.clone();
-                let health_checks = upstream.health_checks.clone();
                 
                 join_set.spawn(async move {
                     let permit = semaphore.acquire_owned().await;
+                    let service_name = upstream.upstream;
+                    let health_checks = upstream.health_checks;
+
                     if permit.is_err() {
                         return (
                             service_name,
@@ -55,10 +56,19 @@ impl ConsulDiscovery {
                         );
                     }
                     let _permit = permit.unwrap();
-
-                    let res = get_consul_nodes(consul_url.as_ref(),
-                                               service_name.as_str(),
-                                               health_checks.as_str()).await;
+                    let res = if upstream.is_upstream_static {
+                        let (address, port) = upstream.upstream_static_host_port.split_once(':')
+                            .expect(&format!("Malformed host:port upstream_static_host property in {}", service_name));
+                        Ok(vec![ConsulNode {
+                            service_name: service_name.clone(),
+                            address: address.to_string(),
+                            service_port: port.parse::<u16>().unwrap_or(0),
+                        }])
+                    } else {
+                        get_consul_nodes(consul_url.as_ref(),
+                                         service_name.as_str(),
+                                         health_checks.as_str()).await
+                    };
                     (service_name, res)
                 });
             }
