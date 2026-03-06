@@ -56,10 +56,10 @@ impl AuthVerifier {
         let client = BasicClient::new(ClientId::new(rp_config.client_id.clone()))
             .set_client_secret(ClientSecret::new(rp_config.client_secret.clone()))
             .set_auth_uri(AuthUrl::new(rp_config.auth_url.clone()).expect("Invalid auth url"))
-            .set_token_uri(TokenUrl::new(rp_config.token_url.clone()).expect("Invalid token url"))
-            .set_redirect_uri(
-                RedirectUrl::new(rp_config.redirect_url.clone()).expect("Invalid redirect url"),
-            );
+            .set_token_uri(TokenUrl::new(rp_config.token_url.clone()).expect("Invalid token url"));
+            // .set_redirect_uri(
+            //     RedirectUrl::new(rp_config.redirect_url.clone()).expect("Invalid redirect url"),
+            // );
 
         let http_client = oauth2::reqwest::ClientBuilder::new()
             .redirect(oauth2::reqwest::redirect::Policy::none())
@@ -76,7 +76,7 @@ impl AuthVerifier {
         }
     }
 
-    pub async fn verify_auth_cookie(&self, session: &mut Session) -> pingora::Result<bool> {
+    pub async fn verify_auth_cookie(&self, session: &mut Session, redirect_url: String) -> pingora::Result<bool> {
         log_trace!("Uri host{}", session.req_header().uri);
 
         let cookie_header = session
@@ -85,7 +85,7 @@ impl AuthVerifier {
 
         match self.decide_auth(&session.req_header().uri, cookie_header) {
             AuthDecision::Exchange { code } => self.exchange(&code, session).await,
-            AuthDecision::RedirectToSso => self.redirect_to_sso(session).await,
+            AuthDecision::RedirectToSso => self.redirect_to_sso(session, redirect_url).await,
             AuthDecision::Proceed => Ok(false),
         }
     }
@@ -110,13 +110,13 @@ impl AuthVerifier {
         AuthDecision::Proceed
     }
 
-    async fn redirect_to_sso(&self, session: &mut Session) -> pingora::Result<bool> {
+    async fn redirect_to_sso(&self, session: &mut Session, redirect_url: String) -> pingora::Result<bool> {
         log_trace!(
             "Redirecting to SSO + req summary {}",
             session.request_summary()
         );
 
-        let location = match self.get_redirect_url() {
+        let location = match self.get_redirect_url(redirect_url) {
             Ok(url) => url,
             Err(e) => {
                 log_error!("Got error during constructing redirect url {}", e);
@@ -217,9 +217,11 @@ impl AuthVerifier {
         )?)
     }
 
-    fn get_redirect_url(&self) -> anyhow::Result<String> {
+    fn get_redirect_url(&self, redirect_url : String) -> anyhow::Result<String> {
         let (auth_url, _) = self
             .client
+            .clone()
+            .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect url"))
             .authorize_url(CsrfToken::new_random)
             .add_scopes(
                 self.rp_config

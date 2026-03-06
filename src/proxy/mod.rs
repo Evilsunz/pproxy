@@ -55,7 +55,7 @@ impl ProxyHttp for NetIqLoadBalancer {
 
         //OAUTH2 challenge
         if  upstream.sso_req {
-            return self.auth_verifier.verify_auth_cookie(session).await;
+            return self.auth_verifier.verify_auth_cookie(session, upstream.redirect_url).await;
         };
 
         Ok(false)
