@@ -4,7 +4,6 @@ use crate::structs::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalance
 use crate::{log_error, log_info, log_trace};
 use async_trait::async_trait;
 use bytes::Bytes;
-use dashmap::DashMap;
 use pingora::ErrorSource::Upstream;
 use pingora::lb::LoadBalancer;
 use pingora::prelude::{ProxyHttp, RoundRobin, Session};

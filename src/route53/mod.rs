@@ -68,7 +68,7 @@ impl BackgroundService for R53 {
 
 //TODO + add jitter
 pub async fn register_ip_route53(conf: &RPConfig, ip : &str, aws_r53_client: &Client,) -> anyhow::Result<(), Error> {
-    let mut fqdns = conf.fqdns.clone();
+    let mut fqdns = conf.r53_fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns {
         process(conf.clone(), &fqdn, ip,aws_r53_client , add_res_record).await?;
@@ -79,7 +79,7 @@ pub async fn register_ip_route53(conf: &RPConfig, ip : &str, aws_r53_client: &Cl
 //TODO add error handle
 //TODO + add jitter
 pub async fn deregister_ip_route53(conf: &RPConfig, ip : &str, aws_r53_client: &Client,) -> anyhow::Result<(), Error> {
-    let mut fqdns = conf.fqdns.clone();
+    let mut fqdns = conf.r53_fqdns.clone();
     fqdns.shuffle(&mut rng());
     for fqdn in fqdns {
         process(conf.clone(), &fqdn, ip, aws_r53_client ,remove_res_record).await?;

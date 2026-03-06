@@ -87,7 +87,7 @@ pub struct RPConfig {
     pub r53_zone_id: String,
 
     pub host_to_upstream: HashMap<String, UpstreamDetails>,
-    pub fqdns: Vec<String>,
+    pub r53_fqdns: Vec<String>,
 }
 
 fn default_health_checks() -> String {

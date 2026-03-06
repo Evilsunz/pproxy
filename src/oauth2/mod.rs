@@ -84,7 +84,7 @@ impl AuthVerifier {
             .and_then(|h| h.to_str().ok());
 
         match self.decide_auth(&session.req_header().uri, cookie_header) {
-            AuthDecision::Exchange { code } => self.exchange(&code, session).await,
+            AuthDecision::Exchange { code } => self.exchange(&code, session, redirect_url).await,
             AuthDecision::RedirectToSso => self.redirect_to_sso(session, redirect_url).await,
             AuthDecision::Proceed => Ok(false),
         }
@@ -144,10 +144,16 @@ impl AuthVerifier {
             .map(|code| code.secret().to_owned())
     }
 
-    async fn exchange(&self, code: &str, session: &mut Session) -> pingora::Result<bool> {
-        let token = match self.client.exchange_code(AuthorizationCode::new(code.to_string())).request_async(&self.http_client).await {
+    async fn exchange(&self, code: &str, session: &mut Session, redirect_url: String) -> pingora::Result<bool> {
+        let token = match self
+            .client
+            .clone()
+            .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect url"))
+            .exchange_code(AuthorizationCode::new(code.to_string())).request_async(&self.http_client).await
+        {
             Ok(t) => {t}
-            Err(_) => {
+            Err(x) => {
+                log_error!("Got error during exchange code {}", x);
                 return Err(pingora::Error::new(ErrorType::HTTPStatus(401)))
             }
         };

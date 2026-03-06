@@ -79,7 +79,7 @@ impl LeaderRoutine {
                                 .unwrap()
                         })
                         .collect();
-                    for fqdn in &self.rp_config.fqdns {
+                    for fqdn in &self.rp_config.r53_fqdns {
                         let response = get_res_record_sets(
                             client.as_ref(),
                             self.rp_config.r53_zone_id.clone(),
