@@ -63,11 +63,18 @@ impl ConsulDiscovery {
                             service_name: service_name.clone(),
                             address: address.to_string(),
                             service_port: port.parse::<u16>().unwrap_or(0),
+                            weight: 1
                         }])
                     } else {
                         get_consul_nodes(consul_url.as_ref(),
-                                         service_name.as_str(),
-                                         health_checks.as_str()).await
+                                         &service_name,
+                                         &health_checks,
+                                         upstream.weighted,
+                                         &upstream.check_name,
+                                         &upstream.check_condition,
+                                         upstream.weight_on_true,
+                                         upstream.weight_on_false,
+                        ).await
                     };
                     (service_name, res)
                 });

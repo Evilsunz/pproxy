@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::config::{RPConfig, UpstreamDetails};
 use crate::consul::ConsulDiscovery;
 use crate::structs::{AuthVerifier, ConsulNode, ConsulNodes, Context, LoadBalancers, NetIqLoadBalancer};

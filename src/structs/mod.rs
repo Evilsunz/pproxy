@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::config::RPConfig;
 use dashmap::DashMap;
 use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
@@ -25,6 +28,40 @@ pub struct ConsulNode {
     pub address: String,
     #[serde(rename = "ServicePort")]
     pub service_port: u16,
+    #[serde(default)]
+    pub weight : u16
+}
+
+impl ConsulNode {
+    pub fn from_raw(raw: ConsulEntryRaw,
+                    weighted: bool,
+                    check_name: &str,
+                    check_condition: &str,
+                    weight_on_true: u16,
+                    weight_on_false: u16,) -> Self {
+        let address = if raw.service.address.is_empty() {
+            raw.node.address
+        } else {
+            raw.service.address
+        };
+        let mut weight = 1;
+        if weighted {
+            if let Some(check) = raw.checks.iter().find(|check| check.id == check_name) {
+                weight = if check_condition == check.output {
+                    weight_on_true
+                } else {
+                    weight_on_false
+                };
+            }
+        }
+
+        Self {
+            service_name: raw.service.name,
+            address,
+            service_port: raw.service.port,
+            weight,
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for ConsulNode {
@@ -42,16 +79,19 @@ impl<'de> Deserialize<'de> for ConsulNode {
             service_name: raw.service.name,
             address,
             service_port: raw.service.port,
+            weight: 1
         })
     }
 }
 
 #[derive(Deserialize)]
-struct ConsulEntryRaw {
+pub struct ConsulEntryRaw {
     #[serde(rename = "Node")]
     node: ConsulNodeRaw,
     #[serde(rename = "Service")]
     service: ConsulServiceRaw,
+    #[serde(rename = "Checks")]
+    checks: Vec<ConsulCheckRaw>,
 }
 
 #[derive(Deserialize)]
@@ -68,6 +108,16 @@ struct ConsulServiceRaw {
     address: String,
     #[serde(rename = "Port")]
     port: u16,
+}
+
+#[derive(Deserialize, Debug,Clone)]
+struct ConsulCheckRaw {
+    #[serde(rename = "CheckID")]
+    id: String,
+    #[serde(rename = "Status")]
+    status: String,
+    #[serde(rename = "Output")]
+    output: String,
 }
 
 pub struct Context {

@@ -11,10 +11,11 @@ use aws_sdk_route53::types::{
     Change, ChangeAction, ChangeBatch, ResourceRecord, ResourceRecordSet, RrType,
 };
 use aws_sdk_route53::{Client, Config};
+use jsonpath_rust::JsonPath;
+use serde_json::Value;
+use crate::structs::{ConsulEntryRaw, ConsulNode};
 
 const AWS_CHECK_IP_URL: &str = "http://checkip.amazonaws.com";
-//TODO HARDCODE!!!!!
-const IGNORED_CONSUL_UI_SERVICE: &str = "consul-ui";
 
 pub fn resolve_ip() -> anyhow::Result<String> {
     let body = reqwest::blocking::get(AWS_CHECK_IP_URL)?.text()?;
@@ -25,16 +26,26 @@ pub async fn get_consul_nodes(
     consul_url: &str,
     service_name: &str,
     health_checks: &str,
+    weighted: bool,
+    check_name: &str,
+    check_condition: &str,
+    weight_on_true: u16,
+    weight_on_false: u16,
 ) -> anyhow::Result<VecConsulNode> {
-    let nodes = reqwest::get(format!(
+    let body = reqwest::get(format!(
         "{}v1/health/service/{}?{}=true",
         consul_url, service_name, health_checks
-    ))
-        .await?
-        .json::<VecConsulNode>()
-        .await?;
+    )).await?.text().await?;
 
-    if nodes.is_empty() && service_name != IGNORED_CONSUL_UI_SERVICE {
+
+    let raws: Vec<ConsulEntryRaw> = serde_json::from_str(&body)?;
+    let nodes: VecConsulNode = raws
+        .into_iter()
+        .map(|raw| ConsulNode::from_raw(raw, weighted, check_name, check_condition, weight_on_true, weight_on_false))
+        .collect();
+
+
+    if nodes.is_empty() {
         return Err(anyhow::anyhow!(
             "No consul healthy nodes found for service {}",
             service_name

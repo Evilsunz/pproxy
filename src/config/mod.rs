@@ -44,9 +44,23 @@ pub struct UpstreamDetails {
     #[serde(default)]
     pub is_upstream_static: bool,
 
-    //Todo make it Vec
     #[serde(default)]
     pub upstream_static_host_port: String,
+
+    #[serde(default)]
+    pub weighted: bool,
+
+    #[serde(default)]
+    pub check_name: String,
+    
+    #[serde(default)]
+    pub check_condition: String,
+
+    #[serde(default)]
+    pub weight_on_true: u16,
+
+    #[serde(default)]
+    pub weight_on_false: u16,
 }
 
 #[config]
